@@ -14,10 +14,19 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 import { ShoppingCart } from 'lucide-react';
+import { DailyStats } from '@/components/pos/DailyStats';
+import { useState, useEffect } from 'react';
 
 export default function CashierPage() {
   const [activeCategory, setActiveCategory] = useState<Category>('All');
-  const { addToOrder, currentOrder } = useOrderStore();
+  const { addToOrder, currentOrder, fetchOrders } = useOrderStore();
+
+  // Poll for ready orders
+  useEffect(() => {
+    fetchOrders(); // Initial fetch
+    const interval = setInterval(fetchOrders, 5000); // Poll every 5 seconds
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
 
   const filteredItems =
     activeCategory === 'All'
@@ -33,6 +42,8 @@ export default function CashierPage() {
       <div className="flex-1 flex overflow-hidden relative">
         {/* Menu Section */}
         <div className="flex-1 flex flex-col p-4 overflow-hidden">
+          <DailyStats />
+
           <CategoryTabs
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}

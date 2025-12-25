@@ -15,6 +15,8 @@ app.use(express.json());
 
 // In-memory store for orders
 let orders = [];
+let dailyCounter = 1;
+let lastDate = new Date().toLocaleDateString();
 
 // API Endpoints
 app.get('/api/orders', (req, res) => {
@@ -23,7 +25,18 @@ app.get('/api/orders', (req, res) => {
 
 app.post('/api/orders', (req, res) => {
     const newOrder = req.body;
-    // Ensure the order has server-side timestamp and status if not provided
+
+    // Check for date change to reset counter
+    const currentDate = new Date().toLocaleDateString();
+    if (currentDate !== lastDate) {
+        dailyCounter = 1;
+        lastDate = currentDate;
+    }
+
+    // Assign Daily ID
+    newOrder.id = `DAILY-${dailyCounter++}`;
+
+    // Ensure timestamp
     if (!newOrder.createdAt) newOrder.createdAt = new Date();
     if (!newOrder.status) newOrder.status = 'new';
 

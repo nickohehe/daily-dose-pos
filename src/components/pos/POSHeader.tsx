@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ChefHat, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ReadyOrdersSheet } from './ReadyOrdersSheet';
 
 export function POSHeader() {
   const location = useLocation();
@@ -16,7 +17,7 @@ export function POSHeader() {
             <span className="text-xl">🍴</span>
           </div>
           <div>
-            <h1 className="font-bold text-lg leading-tight">Restaurant POS</h1>
+            <h1 className="font-bold text-lg leading-tight">Daily Dose</h1>
             <p className="text-xs text-muted-foreground">
               {new Date().toLocaleDateString('en-US', {
                 weekday: 'long',
@@ -27,30 +28,34 @@ export function POSHeader() {
           </div>
         </div>
 
-        <nav className="flex gap-2">
-          <Button
-            asChild
-            variant={isCashier ? 'default' : 'ghost'}
-            size="lg"
-            className={cn(!isCashier && 'text-muted-foreground')}
-          >
-            <Link to="/cashier">
-              <CreditCard className="w-5 h-5" />
-              Cashier
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant={isKitchen ? 'default' : 'ghost'}
-            size="lg"
-            className={cn(!isKitchen && 'text-muted-foreground')}
-          >
-            <Link to="/kitchen">
-              <ChefHat className="w-5 h-5" />
-              Kitchen
-            </Link>
-          </Button>
-        </nav>
+        <div className="flex items-center gap-2">
+          {isCashier && <ReadyOrdersSheet />}
+
+          <nav className="flex gap-2">
+            <Button
+              asChild
+              variant={isCashier ? 'default' : 'ghost'}
+              size="lg"
+              className={cn(!isCashier && 'text-muted-foreground')}
+            >
+              <Link to="/cashier">
+                <CreditCard className="w-5 h-5" />
+                Cashier
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant={isKitchen ? 'default' : 'ghost'}
+              size="lg"
+              className={cn(!isKitchen && 'text-muted-foreground')}
+            >
+              <Link to="/kitchen">
+                <ChefHat className="w-5 h-5" />
+                Kitchen
+              </Link>
+            </Button>
+          </nav>
+        </div>
       </div>
     </header>
   );

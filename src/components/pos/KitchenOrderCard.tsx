@@ -49,8 +49,6 @@ export function KitchenOrderCard({ order }: KitchenOrderCardProps) {
       updateOrderStatus(order.id, 'preparing');
     } else if (order.status === 'preparing') {
       updateOrderStatus(order.id, 'ready');
-    } else if (order.status === 'ready') {
-      updateOrderStatus(order.id, 'completed');
     }
   };
 
@@ -98,14 +96,10 @@ export function KitchenOrderCard({ order }: KitchenOrderCardProps) {
       )}
 
       {order.status === 'ready' && (
-        <Button
-          variant="outline"
-          size="lg"
-          className="w-full border-success text-success hover:bg-success hover:text-white"
-          onClick={handleNextStatus}
-        >
-          Complete Order
-        </Button>
+        <div className="flex items-center justify-center gap-2 py-2 text-success font-semibold border-t border-dashed mt-2">
+          <CheckCircle2 className="w-5 h-5" />
+          Ready for Pickup
+        </div>
       )}
 
       {order.status === 'completed' && (
