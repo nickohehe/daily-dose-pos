@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { toast } from 'sonner';
 import { Order, OrderItem, MenuItem } from '@/types/pos';
 
 interface OrderState {
@@ -99,8 +100,13 @@ export const useOrderStore = create<OrderState>((set, get) => ({
         set({ currentOrder: [] });
         get().fetchOrders(); // Refresh orders
       }
+      import { toast } from 'sonner';
+
+      // ...
+
     } catch (error) {
       console.error('Failed to submit order:', error);
+      toast.error('Failed to submit order. Please check your connection.');
     }
   },
 
