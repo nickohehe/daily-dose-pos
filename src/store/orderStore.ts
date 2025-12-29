@@ -189,9 +189,22 @@ export const useOrderStore = create<OrderState>()(
               orders: state.orders.map(o => o.id === newOrderPayload.id ? createdOrder : o)
             }));
           } else {
+            if (response.status === 403) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || "Store is closed");
+            }
             throw new Error("Server error");
           }
         } catch (error) {
+          const err = error as Error;
+          if (err.message.toLowerCase().includes('store is closed')) {
+            // Revert optimistic update
+            set((state) => ({
+              orders: state.orders.filter(o => o.id !== newOrderPayload.id)
+            }));
+            throw err;
+          }
+
           console.log('Online submission failed, queuing offline:', error);
           set((state) => ({
             offlineQueue: [...state.offlineQueue, newOrderPayload]

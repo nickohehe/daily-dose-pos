@@ -11,8 +11,8 @@ import { AnalyticsData } from "@/types/pos";
 
 interface AnalyticsTabProps {
     analytics: AnalyticsData;
-    period: 'week' | 'month';
-    setPeriod: (val: 'week' | 'month') => void;
+    period: 'today' | 'week' | 'month';
+    setPeriod: (val: 'today' | 'week' | 'month') => void;
 }
 
 export function AnalyticsTab({ analytics, period, setPeriod }: AnalyticsTabProps) {
@@ -25,6 +25,12 @@ export function AnalyticsTab({ analytics, period, setPeriod }: AnalyticsTabProps
     // Format currency
     const formatCurrency = (val: number) => `₱${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+    const getPeriodText = () => {
+        if (period === 'today') return 'today';
+        if (period === 'week') return 'the last 7 days';
+        return 'the last 30 days';
+    };
+
     return (
         <div className="space-y-6 pb-20">
             {/* Header Controls */}
@@ -36,16 +42,17 @@ export function AnalyticsTab({ analytics, period, setPeriod }: AnalyticsTabProps
                     <div>
                         <h2 className="text-xl font-bold tracking-tight">Business Analytics</h2>
                         <p className="text-sm text-muted-foreground hidden sm:block">
-                            Performance metrics for the last {period === 'week' ? '7 days' : '30 days'}
+                            Performance metrics for {getPeriodText()}
                         </p>
                     </div>
                 </div>
-                <Select value={period} onValueChange={(val: 'week' | 'month') => setPeriod(val)}>
+                <Select value={period} onValueChange={(val: 'today' | 'week' | 'month') => setPeriod(val)}>
                     <SelectTrigger className="w-full sm:w-[180px]">
                         <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
                         <SelectValue placeholder="Select period" />
                     </SelectTrigger>
                     <SelectContent>
+                        <SelectItem value="today">Today</SelectItem>
                         <SelectItem value="week">Last 7 Days</SelectItem>
                         <SelectItem value="month">Last 30 Days</SelectItem>
                     </SelectContent>

@@ -61,6 +61,9 @@ const initDb = async () => {
 
             // Add selected_flavor to order_items
             await query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS selected_flavor VARCHAR(255)`);
+
+            // Add is_test to orders for testing mode
+            await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_test BOOLEAN DEFAULT FALSE`);
         } catch (e) { /* ignore if exists */ }
 
         console.log('Sessions table ensured');
@@ -98,6 +101,10 @@ const attachItemsToOrders = async (orders) => {
         items: itemsMap[order.id] || []
     }));
 };
+
+// Global Test Mode State
+let TEST_MODE = false;
+let MAINTENANCE_MODE = false;
 
 app.get('/api/menu', async (req, res) => {
     try {
@@ -258,15 +265,21 @@ app.post('/api/orders', async (req, res) => {
     try {
         // Check for active session
         const { rows: activeSession } = await client.query("SELECT * FROM sessions WHERE status = 'OPEN'");
-        if (activeSession.length === 0) {
+
+        // ALLOW ORDERS IF TEST MODE IS ON, even if closed
+        if (MAINTENANCE_MODE) {
+            return res.status(503).json({ error: 'System is currently in maintenance mode. Please try again later.' });
+        }
+
+        if (activeSession.length === 0 && !TEST_MODE) {
             return res.status(403).json({ error: 'Store is closed. Please open the store first.' });
         }
 
         await client.query('BEGIN');
 
         await client.query(
-            `INSERT INTO orders (id, status, total_amount, customer_name, created_at, table_number, beeper_number)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            `INSERT INTO orders (id, status, total_amount, customer_name, created_at, table_number, beeper_number, is_test)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
             [
                 newOrder.id,
                 newOrder.status || 'new',
@@ -274,7 +287,8 @@ app.post('/api/orders', async (req, res) => {
                 newOrder.customerName,
                 createdAt,
                 newOrder.tableNumber || null,
-                newOrder.beeperNumber || null
+                newOrder.beeperNumber || null,
+                TEST_MODE
             ]
         );
 
@@ -297,9 +311,17 @@ app.post('/api/orders', async (req, res) => {
 
         await client.query('COMMIT');
 
-        res.status(201).json(newOrder);
+        const finalOrder = { ...newOrder, is_test: TEST_MODE };
 
-        io.emit('order:new', newOrder);
+        res.status(201).json(finalOrder);
+
+        // Emit new order - client should maybe visualize test orders differently?
+        io.emit('order:new', finalOrder);
+
+        // If in test mode, maybe warn admins?
+        if (TEST_MODE) {
+            io.emit('console:log', { message: `[TEST] New Order placed: ${newOrder.id}`, type: 'warning' });
+        }
 
     } catch (err) {
         await client.query('ROLLBACK');
@@ -342,7 +364,7 @@ app.post('/api/admin/close-day', async (req, res) => {
         const { rows: metrics } = await query(
             `SELECT COUNT(*) as total_orders, COALESCE(SUM(total_amount), 0) as total_sales 
              FROM orders 
-             WHERE status != 'closed'`
+             WHERE status != 'closed' AND is_test = FALSE`
         );
 
         const sessionOrders = parseInt(metrics[0]?.total_orders || 0);
@@ -366,14 +388,14 @@ app.post('/api/admin/close-day', async (req, res) => {
         const { rows: summaryRows } = await query(
             `SELECT COUNT(*) as total_orders, SUM(total_amount) as total_sales 
              FROM orders 
-             WHERE closed_at = $1`,
+             WHERE closed_at = $1 AND is_test = FALSE`,
             [now]
         );
 
         const { rows: todayMetrics } = await query(
             `SELECT COUNT(*) as total_orders, COALESCE(SUM(total_amount), 0) as total_sales 
              FROM orders 
-             WHERE DATE(closed_at) = DATE($1)`,
+             WHERE DATE(closed_at) = DATE($1) AND is_test = FALSE`,
             [now]
         );
 
@@ -438,12 +460,9 @@ app.get('/api/admin/history', async (req, res) => {
             ORDER BY closed_at DESC
         `);
 
-        // Fetch legacy history (aggregated from orders where date is NOT in sessions to avoid duplicates)
-        // Actually, simplest is to just fetch legacy stats and merge.
-        // Or, if the user starts fresh, we rely on sessions. 
-        // Let's rely on sessions for reliable Open/Close times. 
-        // But for "History archive doesn't update", it's likely because previous impl relied on orders.
-        // Let's return the sessions list.
+        // Sessions technically are aggregated data, so we don't filter them row-by-row for tests here
+        // UNLESS we want to re-calculate them. But we calculated `total_orders` and `total_sales` at close time
+        // filtering out is_test = FALSE. So sessions should be clean.
 
         const historyList = sessionRows.map(row => ({
             filename: row.id.toString(), // Used for key/fetching details. We might need to adjust detail fetch to support IDs.
@@ -466,7 +485,6 @@ app.get('/api/admin/history/:id', async (req, res) => {
 
     try {
         // Check if id is a date string (legacy) or a session ID (integer)
-        // Regex to check if digits
         const isSessionId = /^\d+$/.test(id);
 
         let orders = [];
@@ -478,14 +496,9 @@ app.get('/api/admin/history/:id', async (req, res) => {
             if (sessions.length === 0) return res.status(404).json({ error: 'Session not found' });
             sessionData = sessions[0];
 
-            // Fetch orders for this session. 
-            // We need to associate orders with sessions. 
-            // Current DB doesn't have session_id on orders. 
-            // We have to rely on time range [opened_at, closed_at].
-
             const { rows: sessionOrders } = await query(
                 `SELECT * FROM orders 
-                 WHERE created_at >= $1 AND created_at <= $2
+                 WHERE created_at >= $1 AND created_at <= $2 AND is_test = FALSE
                  ORDER BY created_at DESC`,
                 [sessionData.opened_at, sessionData.closed_at]
             );
@@ -495,7 +508,7 @@ app.get('/api/admin/history/:id', async (req, res) => {
             // Legacy Date Fetch
             const { rows: dateOrders } = await query(
                 `SELECT * FROM orders 
-                 WHERE status = 'closed' AND DATE(closed_at) = DATE($1)
+                 WHERE status = 'closed' AND DATE(closed_at) = DATE($1) AND is_test = FALSE
                  ORDER BY closed_at DESC`,
                 [id] // id is date string
             );
@@ -526,7 +539,14 @@ app.get('/api/admin/history/:id', async (req, res) => {
 
 app.get('/api/admin/analytics', async (req, res) => {
     const { period } = req.query;
-    const limitDays = period === 'month' ? 30 : 7;
+    let timeFilter;
+
+    if (period === 'today') {
+        timeFilter = "DATE(created_at) = CURRENT_DATE";
+    } else {
+        const limitDays = period === 'month' ? 30 : 7;
+        timeFilter = `created_at >= NOW() - INTERVAL '${limitDays} days'`;
+    }
 
     try {
         const dailySql = `
@@ -535,7 +555,7 @@ app.get('/api/admin/analytics', async (req, res) => {
                 COUNT(*) as orders, 
                 SUM(total_amount) as sales 
             FROM orders
-            WHERE created_at >= NOW() - INTERVAL '${limitDays} days'
+            WHERE ${timeFilter} AND is_test = FALSE
             GROUP BY DATE(created_at)
             ORDER BY date ASC
         `;
@@ -554,7 +574,7 @@ app.get('/api/admin/analytics', async (req, res) => {
                 SUM(quantity * menu_item_price_snapshot) as sales
             FROM order_items
             JOIN orders ON orders.id = order_items.order_id
-            WHERE orders.created_at >= NOW() - INTERVAL '${limitDays} days'
+            WHERE ${timeFilter.replace('created_at', 'orders.created_at')} AND orders.is_test = FALSE
             GROUP BY menu_item_name_snapshot
             ORDER BY quantity DESC
             LIMIT 10
@@ -574,7 +594,7 @@ app.get('/api/admin/analytics', async (req, res) => {
                 EXTRACT(HOUR FROM created_at) as hour, 
                 COUNT(*) as orders 
             FROM orders
-            WHERE created_at >= NOW() - INTERVAL '${limitDays} days'
+            WHERE ${timeFilter} AND is_test = FALSE
             GROUP BY hour
             ORDER BY hour ASC
         `;
@@ -595,6 +615,212 @@ app.get('/api/admin/analytics', async (req, res) => {
     } catch (err) {
         console.error('Analytics error:', err);
         res.status(500).json({ error: 'Failed to generate analytics' });
+    }
+});
+
+// Admin Command Endpoint
+app.post('/api/admin/command', async (req, res) => {
+    const { command, args } = req.body;
+
+    // Helper to log
+    const log = (msg, type = 'info') => ({ message: msg, type });
+
+    try {
+        switch (command.toLowerCase()) {
+            case 'help':
+                return res.json([
+                    log('Available commands:', 'info'),
+                    log('  test [on|off] - Toggle testing mode', 'success'),
+                    log('  status - Show system status', 'info'),
+                    log('  delete-day [YYYY-MM-DD] - Delete orders for a date', 'error'),
+                    log('  void [order_id] - Void a specific order', 'warning'),
+                    log('  delete-analytics CONFIRM - Clear all analytics/history', 'error'),
+                    log('  reset-data CONFIRM - WIPE ALL ORDERS (Same as above)', 'error'),
+                    log('  maintenance [on|off] - Toggle maintenance mode', 'warning'),
+                    log('  connections - Show active socket clients', 'info'),
+                    log('  seed [count] - Generate random test orders (Requires Test Mode)', 'success'),
+                    log('  reset-availability - Mark all items available', 'success'),
+                    log('  export [table] - Dump table data JSON', 'info'),
+                    log('  sql [query] - Run SELECT query', 'warning'),
+                ]);
+
+            case 'test':
+                if (args[0] === 'on') {
+                    TEST_MODE = true;
+                    io.emit('test-mode', true);
+                    return res.json([log('TESTING MODE ENABLED. Orders will not be saved to analytics.', 'warning')]);
+                } else if (args[0] === 'off') {
+                    TEST_MODE = false;
+                    io.emit('test-mode', false);
+                    return res.json([log('Testing mode disabled. Live analytics resumed.', 'success')]);
+                }
+                return res.json([log(`Testing mode is currently: ${TEST_MODE ? 'ON' : 'OFF'}`, 'info')]);
+
+            case 'status':
+                const { rows: dbTime } = await query('SELECT NOW()');
+                return res.json([
+                    log(`System Time: ${new Date().toLocaleString()}`, 'info'),
+                    log(`DB Connection: OK (${dbTime[0].now})`, 'success'),
+                    log(`Test Mode: ${TEST_MODE ? 'ACTIVE' : 'INACTIVE'}`, TEST_MODE ? 'warning' : 'success'),
+                ]);
+
+            case 'void':
+                const orderId = args[0];
+                if (!orderId) return res.json([log('Usage: void [order_id]', 'error')]);
+
+                const { rowCount } = await query("UPDATE orders SET status = 'voided' WHERE id = $1", [orderId]);
+                if (rowCount === 0) return res.json([log(`Order ${orderId} not found`, 'error')]);
+
+                io.emit('order:update', { id: orderId, status: 'voided' }); // Simplified packet just to trigger refresh
+                return res.json([log(`Order ${orderId} has been voided.`, 'success')]);
+
+            case 'delete-day':
+                const date = args[0];
+                if (!date) return res.json([log('Usage: delete-day [YYYY-MM-DD] or "today"', 'error')]);
+
+                let targetDate = date;
+                if (date === 'today') targetDate = new Date().toISOString().split('T')[0];
+
+                // Delete items first via cascade or manual
+                // DB usually doesn't cascade by default unless configured.
+                // Safest to delete orders and let items hang (bad) or delete items via subquery.
+
+                await query(`
+                    DELETE FROM order_items 
+                    WHERE order_id IN (SELECT id FROM orders WHERE DATE(created_at) = DATE($1))
+                `, [targetDate]);
+
+                const { rowCount: deletedOrders } = await query(
+                    "DELETE FROM orders WHERE DATE(created_at) = DATE($1)",
+                    [targetDate]
+                );
+
+            case 'delete-analytics':
+                if (args[0] !== 'CONFIRM') return res.json([log('To delete all analytics, type: delete-analytics CONFIRM', 'error')]);
+
+                await query('TRUNCATE TABLE order_items CASCADE');
+                await query('TRUNCATE TABLE orders CASCADE');
+                await query('TRUNCATE TABLE sessions CASCADE');
+
+                io.emit('order:refresh'); // Refresh clients
+                return res.json([log('ANALYTICS DELETED. All order history wiped.', 'success')]);
+
+            case 'maintenance':
+                if (args[0] === 'on') {
+                    MAINTENANCE_MODE = true;
+                    io.emit('maintenance', true);
+                    return res.json([log('MAINTENANCE MODE ON. Orders are now blocked.', 'warning')]);
+                } else if (args[0] === 'off') {
+                    MAINTENANCE_MODE = false;
+                    io.emit('maintenance', false);
+                    return res.json([log('Maintenance mode disabled. Store is open.', 'success')]);
+                }
+                return res.json([log('Usage: maintenance [on|off]', 'info')]);
+
+            case 'connections':
+                const count = io.engine.clientsCount;
+                return res.json([log(`Active Connections: ${count}`, 'info')]);
+
+            case 'reset-availability':
+                await query('UPDATE menu_items SET is_available = TRUE');
+                io.emit('menu:update');
+                return res.json([log('All menu items reset to AVAILABLE.', 'success')]);
+
+            case 'export':
+                const table = args[0];
+                const validTables = ['orders', 'order_items', 'menu_items', 'sessions', 'categories'];
+                if (!validTables.includes(table)) {
+                    return res.json([log(`Invalid table. Available: ${validTables.join(', ')}`, 'error')]);
+                }
+                const { rows: exportData } = await query(`SELECT * FROM ${table}`);
+                return res.json([
+                    log(`Exporting ${exportData.length} rows from ${table}...`, 'info'),
+                    log(JSON.stringify(exportData), 'info')
+                ]);
+
+            case 'sql':
+                const sqlQuery = args.join(' ');
+                if (!sqlQuery.toLowerCase().startsWith('select')) {
+                    return res.json([log('Only SELECT queries are allowed.', 'error')]);
+                }
+                try {
+                    const { rows: sqlRows } = await query(sqlQuery);
+                    return res.json([
+                        log(`Query executed. Rows: ${sqlRows.length}`, 'success'),
+                        log(JSON.stringify(sqlRows, null, 2), 'info')
+                    ]);
+                } catch (err) {
+                    return res.json([log(`SQL Error: ${err.message}`, 'error')]);
+                }
+
+            case 'seed':
+                try {
+                    const seedCount = parseInt(args[0]) || 5;
+                    const isSilent = args.includes('hidden'); // allow 'seed 5 hidden' for invisible test data
+
+                    if (!TEST_MODE) return res.json([log('Enable TEST MODE first (test on) to use this command safely.', 'error')]);
+
+                    const { rows: items } = await query('SELECT * FROM menu_items WHERE is_available = TRUE');
+                    if (items.length === 0) return res.json([log('No menu items available to seed.', 'error')]);
+
+                    let seeded = 0;
+                    for (let i = 0; i < seedCount; i++) {
+                        const orderId = `SEED-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                        const numItems = Math.floor(Math.random() * 4) + 1;
+                        let total = 0;
+                        const orderItems = [];
+
+                        for (let j = 0; j < numItems; j++) {
+                            const item = items[Math.floor(Math.random() * items.length)];
+                            const qty = Math.floor(Math.random() * 2) + 1;
+                            total += parseFloat(item.price) * qty;
+                            orderItems.push({ ...item, quantity: qty });
+                        }
+
+                        // NOTE: We set is_test = FALSE by default so they show up in analytics!
+                        // Unless 'hidden' arg is passed.
+                        await query(
+                            `INSERT INTO orders (id, status, total_amount, customer_name, created_at, table_number, beeper_number, is_test)
+                             VALUES ($1, 'closed', $2, $3, NOW(), $4, $5, $6)`,
+                            [orderId, total, `Test User ${i}`, Math.floor(Math.random() * 10) + 1, Math.floor(Math.random() * 50) + 1, isSilent]
+                        );
+
+                        for (const item of orderItems) {
+                            await query(
+                                `INSERT INTO order_items (order_id, menu_item_id, menu_item_name_snapshot, menu_item_price_snapshot, quantity)
+                                 VALUES ($1, $2, $3, $4, $5)`,
+                                [orderId, item.id, item.name, item.price, item.quantity]
+                            );
+                        }
+                        seeded++;
+                    }
+                    io.emit('order:refresh');
+                    return res.json([
+                        log(`Seeded ${seeded} orders.`, 'success'),
+                        log(isSilent ? 'Hidden from analytics (is_test=true)' : 'Visible in Analytics. Run delete-analytics to wipe.', 'info')
+                    ]);
+                } catch (err) {
+                    console.error('Seed error:', err);
+                    return res.json([log(`Seed failed: ${err.message}`, 'error')]);
+                }
+
+            case 'reset-data':
+                if (args[0] !== 'CONFIRM') return res.json([log('To wipe all data, type: reset-data CONFIRM', 'error')]);
+
+                io.emit('order:refresh');
+                return res.json([log('SYSTEM RESET. ALL DATA WIPED.', 'error')]);
+
+            case 'broadcast':
+                const msg = args.join(' ');
+                io.emit('broadcast', msg);
+                return res.json([log(`Broadcast sent: "${msg}"`, 'success')]);
+
+            default:
+                return res.json([log(`Unknown command: ${command}`, 'error')]);
+        }
+    } catch (e) {
+        console.error(e);
+        res.json([log(`Error executing command: ${e.message}`, 'error')]);
     }
 });
 

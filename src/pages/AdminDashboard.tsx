@@ -1,10 +1,9 @@
-
 import { useEffect, useState, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useOrderStore } from '@/store/orderStore';
 import { useMenuStore } from '@/store/menuStore';
 import { toast } from 'sonner';
-import { LayoutDashboard } from "lucide-react";
+import { Store, History, BarChart3, UtensilsCrossed, Terminal, LayoutDashboard } from 'lucide-react';
 import { CurrentSessionCard } from '@/components/admin/CurrentSessionCard';
 import { SystemInfoCard } from '@/components/admin/SystemInfoCard';
 import { HistoryTable } from '@/components/admin/HistoryTable';
@@ -13,6 +12,7 @@ import { MenuManagement } from '@/components/admin/MenuManagement';
 import { HistoryDialog } from '@/components/admin/HistoryDialog';
 import { AnalyticsData, HistoryItem, DetailedHistory } from '@/types/pos';
 import { socket } from '@/lib/socket';
+import { TerminalPanel } from '@/components/admin/TerminalPanel';
 
 export default function AdminDashboard() {
     // Stores
@@ -25,7 +25,8 @@ export default function AdminDashboard() {
     const [selectedHistory, setSelectedHistory] = useState<DetailedHistory | null>(null);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({ topItems: [], dailyTotals: [], hourlyStats: [] });
-    const [analyticsPeriod, setAnalyticsPeriod] = useState<'week' | 'month'>('week');
+    const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+    const [period, setPeriod] = useState<'today' | 'week' | 'month'>('week');
     const [isLoadingClose, setIsLoadingClose] = useState(false);
     const [sessionStatus, setSessionStatus] = useState<'OPEN' | 'CLOSED'>('CLOSED');
 
@@ -56,7 +57,7 @@ export default function AdminDashboard() {
 
     const fetchAnalytics = useCallback(async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/admin/analytics?period=${analyticsPeriod}`);
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/admin/analytics?period=${period}`);
             if (!res.ok) throw new Error('Failed to fetch analytics');
             const data = await res.json();
             setAnalyticsData(data);
@@ -64,7 +65,7 @@ export default function AdminDashboard() {
             console.error('Error fetching analytics:', error);
             toast.error('Could not load analytics');
         }
-    }, [analyticsPeriod]);
+    }, [period]);
 
     // Initial Load & Socket Listeners
     useEffect(() => {
@@ -177,10 +178,17 @@ export default function AdminDashboard() {
             </h1>
 
             <Tabs defaultValue="overview" className="space-y-8">
-                <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+                <TabsList className="grid w-full grid-cols-4 lg:w-[400px]">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="analytics">Analytics</TabsTrigger>
+                    <TabsTrigger value="analytics" className="gap-2">
+                        <BarChart3 className="w-4 h-4" />
+                        Analytics
+                    </TabsTrigger>
                     <TabsTrigger value="menu">Menu</TabsTrigger>
+                    <TabsTrigger value="developer" className="gap-2">
+                        <Terminal className="w-4 h-4" />
+                        Developer
+                    </TabsTrigger>
                 </TabsList>
 
                 {/* OVERVIEW TAB */}
@@ -212,14 +220,19 @@ export default function AdminDashboard() {
                 <TabsContent value="analytics">
                     <AnalyticsTab
                         analytics={analyticsData}
-                        period={analyticsPeriod}
-                        setPeriod={setAnalyticsPeriod}
+                        period={period}
+                        setPeriod={setPeriod}
                     />
                 </TabsContent>
 
                 {/* MENU TAB */}
                 <TabsContent value="menu">
                     <MenuManagement />
+                </TabsContent>
+
+                {/* DEVELOPER TAB */}
+                <TabsContent value="developer">
+                    <TerminalPanel />
                 </TabsContent>
             </Tabs>
 

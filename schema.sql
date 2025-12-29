@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS orders (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     closed_at TIMESTAMP WITH TIME ZONE, -- For history archiving
     table_number INTEGER,
-    beeper_number INTEGER
+    beeper_number INTEGER,
+    is_test BOOLEAN DEFAULT FALSE -- Flag for testing mode orders
 );
 
 -- Create Order Items Table (Junction table for Order <-> Menu Items)
