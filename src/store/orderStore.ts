@@ -1,176 +1,296 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
+
 import { Order, OrderItem, MenuItem } from '@/types/pos';
 
 interface OrderState {
   currentOrder: OrderItem[];
   orders: Order[];
+  offlineQueue: any[]; // temporarily any to match payload structure
   addToOrder: (item: MenuItem) => void;
   removeFromOrder: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   clearOrder: () => void;
-  submitOrder: (tableNumber?: number) => void;
+  submitOrder: (tableNumber?: number, beeperNumber?: number) => Promise<Order | undefined>;
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
   fetchOrders: () => Promise<void>;
+  syncOfflineOrders: () => Promise<void>;
+
   getOrderTotal: () => number;
+  pendingUpdates: Record<string, boolean>;
+  // Socket actions
+  addIncomingOrder: (order: Order) => void;
+  updateIncomingOrder: (order: Order) => void;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-export const useOrderStore = create<OrderState>((set, get) => ({
-  currentOrder: [],
-  orders: [],
+export const useOrderStore = create<OrderState>()(
+  persist(
+    (set, get) => ({
+      currentOrder: [],
+      orders: [],
+      offlineQueue: [],
+      pendingUpdates: {},
 
-  addToOrder: (item: MenuItem) => {
-    set((state) => {
-      const existing = state.currentOrder.find(o => o.menuItem.id === item.id);
-      if (existing) {
-        return {
-          currentOrder: state.currentOrder.map(o =>
-            o.menuItem.id === item.id
-              ? { ...o, quantity: o.quantity + 1 }
-              : o
-          ),
-        };
-      }
-      return {
-        currentOrder: [...state.currentOrder, { menuItem: item, quantity: 1 }],
-      };
-    });
-  },
+      addToOrder: (item: MenuItem) => {
+        set((state) => {
+          const existing = state.currentOrder.find(o => o.menuItem.id === item.id);
+          if (existing) {
+            return {
+              currentOrder: state.currentOrder.map(o =>
+                o.menuItem.id === item.id
+                  ? { ...o, quantity: o.quantity + 1 }
+                  : o
+              ),
+            };
+          }
+          return {
+            currentOrder: [...state.currentOrder, { menuItem: item, quantity: 1 }],
+          };
+        });
+      },
 
-  removeFromOrder: (itemId: string) => {
-    set((state) => ({
-      currentOrder: state.currentOrder.filter(o => o.menuItem.id !== itemId),
-    }));
-  },
-
-  updateQuantity: (itemId: string, quantity: number) => {
-    if (quantity <= 0) {
-      get().removeFromOrder(itemId);
-      return;
-    }
-    set((state) => ({
-      currentOrder: state.currentOrder.map(o =>
-        o.menuItem.id === itemId ? { ...o, quantity } : o
-      ),
-    }));
-  },
-
-  clearOrder: () => set({ currentOrder: [] }),
-
-  fetchOrders: async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/orders`);
-      if (response.ok) {
-        const data = await response.json();
-        // Convert date strings back to Date objects
-        const orders = data.map((o: any) => ({
-          ...o,
-          createdAt: new Date(o.createdAt),
-        }));
-        set({ orders });
-      }
-    } catch (error) {
-      console.error('Failed to fetch orders:', error);
-    }
-  },
-
-  submitOrder: async (tableNumber?: number) => {
-    const { currentOrder } = get();
-    if (currentOrder.length === 0) return;
-
-    // 1. Snapshot state for rollback
-    const previousOrder = [...currentOrder];
-
-    // 2. Optimistic Update: Clear UI immediately
-    set({ currentOrder: [] });
-    toast.success('Order placed!'); // Immediate feedback
-
-    // 3. Prepare payload
-    const newOrderPayload = {
-      id: `ORD-${Date.now().toString(36).toUpperCase()}`,
-      items: previousOrder,
-      total: 0, // Will be recalculated
-      status: 'new',
-      createdAt: new Date(),
-      tableNumber,
-    };
-
-    // Recalculate total since currentOrder is now empty
-    newOrderPayload.total = previousOrder.reduce(
-      (sum, item) => sum + item.menuItem.price * item.quantity,
-      0
-    );
-
-    try {
-      const response = await fetch(`${API_URL}/api/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newOrderPayload),
-      });
-
-      if (response.ok) {
-        const createdOrder = await response.json();
-        createdOrder.createdAt = new Date(createdOrder.createdAt);
-
-        // Add the confirmed order to the history list
+      removeFromOrder: (itemId: string) => {
         set((state) => ({
-          orders: [createdOrder, ...state.orders]
+          currentOrder: state.currentOrder.filter(o => o.menuItem.id !== itemId),
         }));
-      } else {
-        throw new Error(response.statusText);
-      }
-    } catch (error) {
-      console.error('Failed to submit order:', error);
-      // 4. Rollback on failure
-      set({ currentOrder: previousOrder });
-      toast.error('Failed to submit order. Please try again.');
-    }
-  },
+      },
 
-  updateOrderStatus: async (orderId: string, status: Order['status']) => {
-    // 1. Optimistic Update
-    const previousOrders = get().orders;
-    set((state) => ({
-      orders: state.orders.map(o =>
-        o.id === orderId ? { ...o, status } : o
-      )
-    }));
-
-    if (status === 'completed') {
-      toast.success('Order completed!');
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/api/orders/${orderId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          // Order missing on server. Force sync source of truth.
-          await get().fetchOrders();
-          toast.error('Order missing on server. Syncing...');
-        } else {
-          // Other error, revert
-          set({ orders: previousOrders });
-          toast.error('Failed to update status. Reverting changes.');
+      updateQuantity: (itemId: string, quantity: number) => {
+        if (quantity <= 0) {
+          get().removeFromOrder(itemId);
+          return;
         }
-      }
-    } catch (error) {
-      console.error('Failed to update order status:', error);
-      set({ orders: previousOrders });
-      toast.error('Connection error. Reverting changes.');
-    }
-  },
+        set((state) => ({
+          currentOrder: state.currentOrder.map(o =>
+            o.menuItem.id === itemId ? { ...o, quantity } : o
+          ),
+        }));
+      },
 
-  getOrderTotal: () => {
-    return get().currentOrder.reduce(
-      (sum, item) => sum + item.menuItem.price * item.quantity,
-      0
-    );
-  },
-}));
+      clearOrder: () => set({ currentOrder: [] }),
+
+      fetchOrders: async () => {
+        try {
+          const response = await fetch(`${API_URL}/api/orders?t=${Date.now()}`);
+          if (response.ok) {
+            const data = await response.json();
+            const incomingOrders = data.map((o: any) => ({
+              ...o,
+              createdAt: new Date(o.createdAt),
+              tableNumber: o.table_number || o.tableNumber,
+              beeperNumber: o.beeper_number || o.beeperNumber
+            }));
+
+            set((state) => {
+              const mergedOrders = incomingOrders.map((incoming: Order) => {
+                if (state.pendingUpdates[incoming.id]) {
+                  const localOrder = state.orders.find(o => o.id === incoming.id);
+                  return localOrder || incoming;
+                }
+                return incoming;
+              });
+              return { orders: mergedOrders };
+            });
+          }
+        } catch (error) {
+          console.error('Failed to fetch orders:', error);
+        }
+      },
+
+      syncOfflineOrders: async () => {
+        const { offlineQueue } = get();
+        if (offlineQueue.length === 0) return;
+
+        toast.info(`Syncing ${offlineQueue.length} offline orders...`);
+
+        const remainingQueue = [];
+
+        for (const orderPayload of offlineQueue) {
+          try {
+            const response = await fetch(`${API_URL}/api/orders`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(orderPayload),
+            });
+
+            if (response.ok) {
+              const createdOrder = await response.json();
+              createdOrder.createdAt = new Date(createdOrder.createdAt);
+              set((state) => ({
+                orders: [createdOrder, ...state.orders]
+              }));
+              toast.success(`Order ${orderPayload.id} synced!`);
+            } else {
+              remainingQueue.push(orderPayload);
+            }
+          } catch (e) {
+            remainingQueue.push(orderPayload);
+          }
+        }
+
+        set({ offlineQueue: remainingQueue });
+      },
+
+      submitOrder: async (tableNumber?: number, beeperNumber?: number) => {
+        const { currentOrder } = get();
+        if (currentOrder.length === 0) return;
+
+        const previousOrder = [...currentOrder];
+        set({ currentOrder: [] });
+
+        const newOrderPayload = {
+          id: `ORD-${Date.now().toString(36).toUpperCase()}`,
+          items: previousOrder,
+          total: 0,
+          status: 'new',
+          createdAt: new Date(),
+          tableNumber,
+          beeperNumber,
+        };
+
+        newOrderPayload.total = previousOrder.reduce(
+          (sum, item) => sum + item.menuItem.price * item.quantity,
+          0
+        );
+
+        // Optimistically add to UI immediately
+        const optimisticOrder = {
+          ...newOrderPayload,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          items: newOrderPayload.items.map((i: any) => ({
+            ...i,
+            id: Math.random().toString(), // temporary id
+            menu_item_id: i.menuItem.id
+          }))
+        } as unknown as Order;
+
+        set((state) => ({
+          orders: [optimisticOrder, ...state.orders]
+        }));
+
+        toast.success("Order Placed (Saved)");
+
+        try {
+          const response = await fetch(`${API_URL}/api/orders`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newOrderPayload),
+          });
+
+          if (response.ok) {
+            const createdOrder = await response.json();
+            createdOrder.createdAt = new Date(createdOrder.createdAt);
+
+            // Replace optimistic order with real one
+            set((state) => ({
+              orders: state.orders.map(o => o.id === newOrderPayload.id ? createdOrder : o)
+            }));
+          } else {
+            throw new Error("Server error");
+          }
+        } catch (error) {
+          console.log('Online submission failed, queuing offline:', error);
+          set((state) => ({
+            offlineQueue: [...state.offlineQueue, newOrderPayload]
+          }));
+          toast.message("Offline Mode", {
+            description: "Order saved locally. Will sync when online.",
+          });
+          return optimisticOrder;
+        }
+      },
+
+      updateOrderStatus: async (orderId: string, status: Order['status']) => {
+        const previousOrders = get().orders;
+
+        set((state) => ({
+          pendingUpdates: { ...state.pendingUpdates, [orderId]: true },
+          orders: state.orders.map(o =>
+            o.id === orderId ? { ...o, status } : o
+          )
+        }));
+
+        if (status === 'completed') {
+          toast.success('Order completed!');
+        }
+
+        try {
+          const response = await fetch(`${API_URL}/api/orders/${orderId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status }),
+          });
+
+          if (!response.ok) {
+            throw new Error(response.statusText);
+          }
+
+          set((state) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { [orderId]: _, ...rest } = state.pendingUpdates;
+            return { pendingUpdates: rest };
+          });
+
+        } catch (error) {
+          console.error('Failed to update order status:', error);
+          set((state) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { [orderId]: _, ...rest } = state.pendingUpdates;
+            return {
+              orders: previousOrders,
+              pendingUpdates: rest
+            };
+          });
+          toast.error('Connection error. Reverting changes.');
+        }
+      },
+
+      getOrderTotal: () => {
+        return get().currentOrder.reduce(
+          (sum, item) => sum + item.menuItem.price * item.quantity,
+          0
+        );
+      },
+
+      addIncomingOrder: (order: Order) => {
+        set((state) => {
+          if (state.orders.some(o => o.id === order.id)) return state;
+          return { orders: [order, ...state.orders] };
+        });
+      },
+
+      updateIncomingOrder: (order: Order) => {
+        set((state) => ({
+          orders: state.orders.map(o => o.id === order.id ? order : o)
+        }));
+      },
+    }),
+    {
+      name: 'daily-dose-storage',
+      partialize: (state) => ({ offlineQueue: state.offlineQueue }), // Only persist the queue
+    }
+  )
+);
+
+// Initialize Socket Connection
+import { socket } from '@/lib/socket';
+
+socket.on('connect', () => {
+  console.log('Connected to WebSocket server');
+  useOrderStore.getState().syncOfflineOrders();
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+socket.on('order:new', (newOrder: any) => {
+  const order = { ...newOrder, createdAt: new Date(newOrder.createdAt) };
+  useOrderStore.getState().addIncomingOrder(order);
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+socket.on('order:update', (updatedOrder: any) => {
+  const order = { ...updatedOrder, createdAt: new Date(updatedOrder.createdAt) };
+  useOrderStore.getState().updateIncomingOrder(order);
+});

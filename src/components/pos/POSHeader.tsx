@@ -3,6 +3,7 @@ import { ChefHat, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ReadyOrdersSheet } from './ReadyOrdersSheet';
+import { ConnectionStatus } from '@/components/ui/ConnectionStatus';
 
 export function POSHeader() {
   const location = useLocation();
@@ -13,18 +14,21 @@ export function POSHeader() {
     <header className="bg-card border-b border-border px-4 py-3 shadow-sm">
       <div className="flex items-center justify-between max-w-screen-2xl mx-auto">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <span className="text-xl">🍴</span>
+          <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center">
+            <img src="/daily-dose-logo.jpg" alt="Daily Dose Logo" className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="font-bold text-lg leading-tight">Daily Dose</h1>
-            <p className="text-xs text-muted-foreground">
-              {new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'short',
-                day: 'numeric',
-              })}
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-muted-foreground mr-1">
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </p>
+              <ConnectionStatus />
+            </div>
           </div>
         </div>
 
@@ -38,9 +42,9 @@ export function POSHeader() {
               size="lg"
               className={cn(!isCashier && 'text-muted-foreground')}
             >
-              <Link to="/cashier">
+              <Link to="/cashier" className="flex items-center gap-2">
                 <CreditCard className="w-5 h-5" />
-                Cashier
+                <span className="hidden sm:inline">Cashier</span>
               </Link>
             </Button>
             <Button
@@ -49,9 +53,9 @@ export function POSHeader() {
               size="lg"
               className={cn(!isKitchen && 'text-muted-foreground')}
             >
-              <Link to="/kitchen">
+              <Link to="/kitchen" className="flex items-center gap-2">
                 <ChefHat className="w-5 h-5" />
-                Kitchen
+                <span className="hidden sm:inline">Kitchen</span>
               </Link>
             </Button>
           </nav>

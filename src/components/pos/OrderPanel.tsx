@@ -1,42 +1,78 @@
-import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingCart, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useOrderStore } from '@/store/orderStore';
 import { toast } from 'sonner';
+import { useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 
 export function OrderPanel() {
   const { currentOrder, updateQuantity, removeFromOrder, clearOrder, submitOrder, getOrderTotal } = useOrderStore();
-  const total = getOrderTotal();
+  const [cashReceived, setCashReceived] = useState<string>('');
+  const [beeperNumber, setBeeperNumber] = useState<string>('');
+  const [tableNumber, setTableNumber] = useState<string>('');
 
-  const handleSubmit = () => {
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const total = getOrderTotal();
+  const cashValue = parseFloat(cashReceived) || 0;
+  const change = Math.max(0, cashValue - total);
+
+  const handleSubmit = async () => {
     if (currentOrder.length === 0) {
       toast.error('Add items to the order first');
       return;
     }
-    submitOrder();
-    toast.success('Order sent to kitchen!');
+
+    try {
+      await submitOrder(parseInt(tableNumber) || undefined, parseInt(beeperNumber) || undefined);
+      setCashReceived('');
+      setBeeperNumber('');
+      setTableNumber('');
+      toast.success('Order sent to kitchen!');
+    } catch (error) {
+      const err = error as Error;
+      setErrorMessage(err.message || 'Failed to submit order');
+      setErrorDialogOpen(true);
+    }
   };
 
   return (
-    <div className="flex flex-col h-full bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <ShoppingCart className="w-5 h-5 text-primary" />
-          <h2 className="font-semibold text-lg">Current Order</h2>
+    <div className="flex flex-col h-full bg-background/60 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl overflow-hidden ring-1 ring-black/5">
+
+      <div className="p-5 border-b border-border/10 bg-white/5">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary/20 rounded-lg text-primary">
+            <ShoppingCart className="w-5 h-5" />
+          </div>
+          <h2 className="font-bold text-lg tracking-tight">Current Order</h2>
         </div>
       </div>
 
       <div className="flex-1 overflow-auto p-4 space-y-3">
         {currentOrder.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
-            <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-30" />
-            <p>No items yet</p>
-            <p className="text-sm">Tap menu items to add</p>
+          <div className="text-center text-muted-foreground py-12 flex flex-col items-center justify-center h-full">
+            <div className="w-20 h-20 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+              <ShoppingCart className="w-10 h-10 opacity-30" />
+            </div>
+            <p className="font-medium mb-1">Items will appear here</p>
+            <p className="text-sm opacity-70">Tap items to add to cart</p>
           </div>
         ) : (
           currentOrder.map((orderItem) => (
             <div
               key={orderItem.menuItem.id}
-              className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg animate-slide-in"
+              className="group flex items-center gap-3 p-3 bg-card/40 hover:bg-card/80 border border-transparent hover:border-border/50 rounded-xl transition-all duration-200 animate-in slide-in-from-right-4 fade-in duration-300"
             >
               <span className="text-xl">{orderItem.menuItem.emoji}</span>
               <div className="flex-1 min-w-0">
@@ -78,28 +114,92 @@ export function OrderPanel() {
       </div>
 
       <div className="p-4 border-t border-border space-y-3">
-        <div className="flex justify-between items-center text-lg">
-          <span className="font-medium">Total</span>
-          <span className="font-bold text-xl text-primary">₱{total.toFixed(2)}</span>
+        <div className="space-y-2 pb-2 border-b border-border/50">
+          <div className="flex justify-between items-center text-base">
+            <span className="text-muted-foreground">Total</span>
+            <span className="font-bold text-xl text-primary">₱{total.toFixed(2)}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium min-w-[50px]">Table:</span>
+              <Input
+                type="number"
+                placeholder="#"
+                value={tableNumber}
+                onChange={(e) => setTableNumber(e.target.value)}
+                className="text-right font-medium"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium min-w-[50px]">Beeper:</span>
+              <Input
+                type="number"
+                placeholder="#"
+                value={beeperNumber}
+                onChange={(e) => setBeeperNumber(e.target.value)}
+                className="text-right font-medium"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium min-w-[60px]">Cash:</span>
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={cashReceived}
+              onChange={(e) => setCashReceived(e.target.value)}
+              className="text-right font-medium"
+            />
+          </div>
+
+          <div className="flex justify-between items-center text-base pt-1">
+            <span className="text-muted-foreground">Change</span>
+            <span className={`font-bold text-lg ${change > 0 ? 'text-success' : 'text-muted-foreground'}`}>
+              ₱{change.toFixed(2)}
+            </span>
+          </div>
         </div>
+
         <div className="grid grid-cols-2 gap-2">
           <Button
             variant="outline"
             size="lg"
-            onClick={clearOrder}
+            onClick={() => { clearOrder(); setCashReceived(''); setBeeperNumber(''); setTableNumber(''); }}
             disabled={currentOrder.length === 0}
           >
             Clear
           </Button>
-          <Button
-            size="lg"
-            onClick={handleSubmit}
-            disabled={currentOrder.length === 0}
-          >
-            Send to Kitchen
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="lg"
+              className="flex-1"
+              onClick={handleSubmit}
+              disabled={currentOrder.length === 0}
+            >
+              Pay & Send
+            </Button>
+          </div>
         </div>
       </div>
+
+      <AlertDialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Order Failed
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base font-medium text-foreground">
+              {errorMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setErrorDialogOpen(false)}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

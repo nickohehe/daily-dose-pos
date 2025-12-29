@@ -1,7 +1,6 @@
-import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Category } from '@/types/pos';
-
-import { categories } from '@/data/menuData';
+import { useMenuStore } from '@/store/menuStore';
 
 interface CategoryTabsProps {
   activeCategory: Category;
@@ -9,18 +8,24 @@ interface CategoryTabsProps {
 }
 
 export function CategoryTabs({ activeCategory, onCategoryChange }: CategoryTabsProps) {
+  const { categories } = useMenuStore();
+
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide touch-pan-x">
+    <div className="flex gap-2 overflow-x-auto pb-4 pt-2 px-1 scrollbar-hide touch-pan-x mask-fade-right">
       {categories.map((category) => (
-        <Button
+        <button
           key={category}
-          variant={activeCategory === category ? 'categoryActive' : 'category'}
-          size="touch"
           onClick={() => onCategoryChange(category)}
-          className="shrink-0"
+          className={cn(
+            "relative px-6 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 shrink-0 select-none",
+            "border border-transparent",
+            activeCategory === category
+              ? "bg-primary text-primary-foreground shadow-md shadow-primary/25 scale-105"
+              : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground border-border/50"
+          )}
         >
           {category}
-        </Button>
+        </button>
       ))}
     </div>
   );

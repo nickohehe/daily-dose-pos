@@ -1,33 +1,56 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { POSHeader } from '@/components/pos/POSHeader';
 import { KitchenOrderCard } from '@/components/pos/KitchenOrderCard';
 import { useOrderStore } from '@/store/orderStore';
 import { ClipboardList } from 'lucide-react';
+import { socket } from '@/lib/socket';
 
 export default function KitchenPage() {
   const { orders, fetchOrders } = useOrderStore();
 
-  // Poll for new orders every 5 seconds
+
+  // Poll for new orders
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 5000);
+    const interval = setInterval(fetchOrders, 2000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
+
+
+
+  // Listen for new orders via socket to play sound
+  useEffect(() => {
+    const handleNewOrder = () => {
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+      audio.play().catch(e => console.log('Audio play failed:', e));
+    };
+
+    socket.on('order:new', handleNewOrder);
+
+    return () => {
+      socket.off('order:new', handleNewOrder);
+    };
+  }, []);
 
   const activeOrders = orders.filter((o) => o.status === 'new' || o.status === 'preparing');
   const readyOrders = orders.filter((o) => o.status === 'ready');
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-zinc-950/50">
+      {/* Subtle Background Pattern */}
+      <div className="fixed inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px] pointer-events-none" />
+
       <POSHeader />
 
-      <div className="flex-1 p-4 overflow-auto">
+      <div className="flex-1 p-4 lg:p-6 overflow-auto relative z-10 w-full">
         <div className="max-w-screen-2xl mx-auto">
           {orders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-              <ClipboardList className="w-16 h-16 mb-4 opacity-30" />
-              <h2 className="text-xl font-semibold mb-1">No orders yet</h2>
-              <p>Orders from the cashier will appear here</p>
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground animate-in fade-in duration-500">
+              <div className="w-24 h-24 bg-card/50 rounded-full flex items-center justify-center mb-6 shadow-lg border border-white/20 backdrop-blur-sm">
+                <ClipboardList className="w-10 h-10 opacity-50 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2 text-foreground tracking-tight">All caught up</h2>
+              <p className="text-base font-medium opacity-60">Waiting for new orders from the cashier...</p>
             </div>
           ) : (
             <div className="space-y-6">

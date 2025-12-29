@@ -1,0 +1,47 @@
+{
+  "date": "2025-12-26",
+  "closedAt": "2025-12-26T06:35:26.770Z",
+  "totalOrders": 1,
+  "totalSales": 267,
+  "orders": [
+    {
+      "id": "DAILY-1",
+      "items": [
+        {
+          "menuItem": {
+            "id": "3",
+            "name": "FLAT WHITE [FW]",
+            "price": 89,
+            "category": "Basic",
+            "emoji": ""
+          },
+          "quantity": 1
+        },
+        {
+          "menuItem": {
+            "id": "4",
+            "name": "Fries [FR]",
+            "price": 89,
+            "category": "Basic",
+            "emoji": ""
+          },
+          "quantity": 1
+        },
+        {
+          "menuItem": {
+            "id": "2",
+            "name": "Cappucino [CP]",
+            "price": 89,
+            "category": "Basic",
+            "emoji": ""
+          },
+          "quantity": 1
+        }
+      ],
+      "total": 267,
+      "status": "completed",
+      "createdAt": "2025-12-26T06:35:12.414Z",
+      "tableNumber": 10
+    }
+  ]
+}

@@ -12,22 +12,25 @@ const statusConfig = {
   new: {
     label: 'New Order',
     icon: Clock,
-    color: 'border-warning bg-warning/10',
-    iconColor: 'text-warning',
+    color: 'border-orange-200 dark:border-orange-800',
+    iconColor: 'text-orange-600 dark:text-orange-400',
+    iconBg: 'bg-orange-100 dark:bg-orange-900/30',
     pulse: true,
   },
   preparing: {
     label: 'Preparing',
     icon: ChefHat,
-    color: 'border-primary bg-primary/10',
-    iconColor: 'text-primary',
+    color: 'border-blue-200 dark:border-blue-800',
+    iconColor: 'text-blue-600 dark:text-blue-400',
+    iconBg: 'bg-blue-100 dark:bg-blue-900/30',
     pulse: false,
   },
   ready: {
     label: 'Ready',
     icon: CheckCircle2,
-    color: 'border-success bg-success/10',
-    iconColor: 'text-success',
+    color: 'border-emerald-200 dark:border-emerald-800',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    iconBg: 'bg-emerald-100 dark:bg-emerald-900/30',
     pulse: false,
   },
 };
@@ -37,8 +40,10 @@ export function KitchenOrderCard({ order }: KitchenOrderCardProps) {
   const config = statusConfig[order.status];
   const StatusIcon = config.icon;
 
-  const getTimeAgo = (date: Date) => {
-    const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
+  const getTimeAgo = (date: Date | string) => {
+    const d = new Date(date);
+    const minutes = Math.floor((Date.now() - d.getTime()) / 60000);
+    if (isNaN(minutes)) return 'Just now';
     if (minutes < 1) return 'Just now';
     if (minutes === 1) return '1 min ago';
     return `${minutes} mins ago`;
@@ -55,59 +60,102 @@ export function KitchenOrderCard({ order }: KitchenOrderCardProps) {
   return (
     <div
       className={cn(
-        'rounded-xl border-2 p-4 transition-all animate-slide-in',
+        'group relative overflow-hidden rounded-xl border p-5 transition-all duration-300 animate-in fade-in zoom-in-95',
+        'bg-white/80 dark:bg-zinc-950/40 backdrop-blur-md',
+        'hover:shadow-xl hover:-translate-y-1 hover:border-primary/20',
         config.color,
-        config.pulse && 'animate-pulse-soft'
+        config.pulse && 'shadow-[0_0_15px_-3px_rgba(255,171,0,0.3)] ring-1 ring-warning/50'
       )}
     >
-      <div className="flex items-start justify-between mb-3">
+      {/* Decorative gradient blob */}
+      <div
+        className={cn(
+          "absolute -top-10 -right-10 w-24 h-24 rounded-full blur-2xl opacity-20 pointer-events-none transition-colors",
+          order.status === 'new' ? 'bg-orange-500' : order.status === 'preparing' ? 'bg-blue-500' : 'bg-emerald-500'
+        )}
+      />
+
+      <div className="relative flex items-start justify-between mb-4">
         <div>
-          <div className="flex items-center gap-2">
-            <StatusIcon className={cn('w-5 h-5', config.iconColor)} />
-            <span className="font-bold text-lg">{order.id}</span>
+          <div className="flex items-center gap-2 mb-1">
+            <div className={cn("p-1.5 rounded-lg flex items-center justify-center shadow-sm", config.iconBg)}>
+              <StatusIcon className={cn('w-4 h-4', config.iconColor)} />
+            </div>
+            <span className="font-bold text-lg tracking-tight font-mona">{order.id}</span>
+            {order.status === 'new' && (
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-warning text-warning-foreground px-1.5 py-0.5 rounded-md animate-pulse">
+                New
+              </span>
+            )}
           </div>
-          {order.tableNumber && (
-            <span className="text-sm text-muted-foreground">Table {order.tableNumber}</span>
-          )}
+
+          <div className="space-y-0.5 pl-1">
+            {order.tableNumber && (
+              <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
+                Table {order.tableNumber}
+              </div>
+            )}
+            {order.beeperNumber && (
+              <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
+                Beeper {order.beeperNumber}
+              </div>
+            )}
+          </div>
         </div>
-        <span className="text-sm text-muted-foreground">{getTimeAgo(order.createdAt)}</span>
+
+        <div className="flex flex-col items-end">
+          <span className="text-xs font-medium text-muted-foreground/80 bg-secondary/50 px-2 py-1 rounded-full border border-border/50">
+            {getTimeAgo(order.createdAt)}
+          </span>
+        </div>
       </div>
 
-      <div className="space-y-2 mb-4">
+      <div className="py-3 space-y-3 mb-4 border-t border-b border-border/50 border-dashed">
         {order.items.map((item) => (
-          <div key={item.menuItem.id} className="flex items-center gap-2">
-            <span className="text-lg">{item.menuItem.emoji}</span>
-            <span className="font-medium">
-              {item.quantity}× {item.menuItem.name}
+          <div key={item.menuItem.id} className="flex items-start gap-3 group/item">
+            <span className="text-xl bg-secondary/30 w-8 h-8 flex items-center justify-center rounded-lg shadow-sm border border-border/50">
+              {item.menuItem.emoji}
             </span>
+            <div className="flex-1">
+              <div className="flex justify-between items-start">
+                <span className="font-medium text-sm text-foreground/90 group-hover/item:text-foreground transition-colors">
+                  {item.menuItem.name}
+                </span>
+                <span className="font-bold text-sm bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[11px] ml-2">
+                  x{item.quantity}
+                </span>
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
-      {order.status !== 'ready' && order.status !== 'completed' && (
-        <Button
-          variant={order.status === 'new' ? 'warning' : 'success'}
-          size="lg"
-          className="w-full"
-          onClick={handleNextStatus}
-        >
-          {order.status === 'new' ? 'Start Preparing' : 'Mark Ready'}
-        </Button>
-      )}
+      <div className="relative z-10">
+        {order.status !== 'ready' && order.status !== 'completed' && (
+          <Button
+            variant="default"
+            size="lg"
+            className={cn(
+              "w-full font-semibold shadow-lg transition-all active:scale-95 text-white border-0",
+              order.status === 'new'
+                ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-500/20"
+                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/20"
+            )}
+            onClick={handleNextStatus}
+          >
+            {order.status === 'new' ? 'Start Preparing' : 'Mark Ready'}
+          </Button>
+        )}
 
-      {order.status === 'ready' && (
-        <div className="flex items-center justify-center gap-2 py-2 text-success font-semibold border-t border-dashed mt-2">
-          <CheckCircle2 className="w-5 h-5" />
-          Ready for Pickup
-        </div>
-      )}
-
-      {order.status === 'completed' && (
-        <div className="flex items-center justify-center gap-2 py-2 text-muted-foreground font-semibold">
-          <Archive className="w-5 h-5" />
-          Order Completed
-        </div>
-      )}
+        {order.status === 'ready' && (
+          <div className="flex items-center justify-center gap-2 py-2 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-100 dark:border-emerald-900/50 font-semibold text-sm animate-in zoom-in-95">
+            <CheckCircle2 className="w-4 h-4" />
+            Ready for Pickup
+          </div>
+        )}
+      </div>
     </div>
   );
 }

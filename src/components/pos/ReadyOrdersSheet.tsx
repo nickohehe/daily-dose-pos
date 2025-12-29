@@ -45,14 +45,19 @@ export function ReadyOrdersSheet() {
                             <div key={order.id} className="border rounded-lg p-4 bg-card shadow-sm">
                                 <div className="flex justify-between items-start mb-2">
                                     <div>
-                                        <h3 className="font-bold text-lg">{order.id}</h3>
-                                        {order.tableNumber && (
-                                            <p className="text-sm text-muted-foreground">Table {order.tableNumber}</p>
-                                        )}
+                                        <h3 className="font-bold text-lg">
+                                            {order.tableNumber && `Table ${order.tableNumber}`}
+                                            {order.tableNumber && order.beeperNumber && ' | '}
+                                            {order.beeperNumber && `Beeper ${order.beeperNumber}`}
+                                            {!order.tableNumber && !order.beeperNumber && order.id}
+                                        </h3>
                                     </div>
                                     <div className="flex items-center text-xs text-muted-foreground">
                                         <Clock className="w-3 h-3 mr-1" />
-                                        {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {(() => {
+                                            const d = new Date(order.createdAt);
+                                            return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                        })()}
                                     </div>
                                 </div>
 

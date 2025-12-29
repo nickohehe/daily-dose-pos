@@ -104,4 +104,45 @@
   .touch-target {
     @apply min-h-[48px] min-w-[48px];
   }
+
+  /* Hide number input spinners */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer utilities {
+  @media print {
+
+    /* Hide everything by default */
+    body * {
+      visibility: hidden;
+    }
+
+    /* Show only the print area */
+    .print\:block,
+    .print\:block * {
+      visibility: visible;
+    }
+
+    /* Position the print area at the top left */
+    .print\:block {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+    }
+
+    /* Hide headers, footers, scrollbars */
+    @page {
+      margin: 0;
+      size: auto;
+    }
+  }
 }

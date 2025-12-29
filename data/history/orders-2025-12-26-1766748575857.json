@@ -1,0 +1,26 @@
+{
+  "date": "2025-12-26",
+  "closedAt": "2025-12-26T11:29:35.857Z",
+  "totalOrders": 1,
+  "totalSales": 67,
+  "orders": [
+    {
+      "id": "DAILY-1",
+      "items": [
+        {
+          "menuItem": {
+            "name": "Hi",
+            "price": 67,
+            "category": "Basic",
+            "emoji": "",
+            "id": "1766733205016"
+          },
+          "quantity": 1
+        }
+      ],
+      "total": 67,
+      "status": "completed",
+      "createdAt": "2025-12-26T07:22:45.086Z"
+    }
+  ]
+}

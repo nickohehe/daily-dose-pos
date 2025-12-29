@@ -1,0 +1,116 @@
+{
+  "date": "2025-12-26",
+  "closedAt": "2025-12-26T07:20:52.959Z",
+  "totalOrders": 6,
+  "totalSales": 1384,
+  "orders": [
+    {
+      "id": "DAILY-6",
+      "items": [
+        {
+          "menuItem": {
+            "name": "Hi",
+            "price": 67,
+            "category": "Basic",
+            "emoji": "",
+            "id": "1766733205016"
+          },
+          "quantity": 6
+        }
+      ],
+      "total": 402,
+      "status": "completed",
+      "createdAt": "2025-12-26T07:20:14.921Z"
+    },
+    {
+      "id": "DAILY-5",
+      "items": [
+        {
+          "menuItem": {
+            "name": "Hi",
+            "price": 67,
+            "category": "Basic",
+            "emoji": "",
+            "id": "1766733205016"
+          },
+          "quantity": 8
+        }
+      ],
+      "total": 536,
+      "status": "completed",
+      "createdAt": "2025-12-26T07:19:47.038Z"
+    },
+    {
+      "id": "DAILY-4",
+      "items": [
+        {
+          "menuItem": {
+            "name": "Hi",
+            "price": 67,
+            "category": "Basic",
+            "emoji": "",
+            "id": "1766733205016"
+          },
+          "quantity": 3
+        }
+      ],
+      "total": 201,
+      "status": "completed",
+      "createdAt": "2025-12-26T07:16:08.983Z"
+    },
+    {
+      "id": "DAILY-3",
+      "items": [
+        {
+          "menuItem": {
+            "name": "Hi",
+            "price": 67,
+            "category": "Basic",
+            "emoji": "",
+            "id": "1766733205016"
+          },
+          "quantity": 1
+        }
+      ],
+      "total": 67,
+      "status": "completed",
+      "createdAt": "2025-12-26T07:13:45.254Z"
+    },
+    {
+      "id": "DAILY-2",
+      "items": [
+        {
+          "menuItem": {
+            "id": "2",
+            "name": "Cappucino [CP]",
+            "price": 89,
+            "category": "Basic",
+            "emoji": ""
+          },
+          "quantity": 1
+        }
+      ],
+      "total": 89,
+      "status": "completed",
+      "createdAt": "2025-12-26T06:56:23.760Z"
+    },
+    {
+      "id": "DAILY-1",
+      "items": [
+        {
+          "menuItem": {
+            "id": "4",
+            "name": "Fries [FR]",
+            "price": 89,
+            "category": "Basic",
+            "emoji": ""
+          },
+          "quantity": 1
+        }
+      ],
+      "total": 89,
+      "status": "completed",
+      "createdAt": "2025-12-26T06:55:55.380Z"
+    }
+  ]
+}

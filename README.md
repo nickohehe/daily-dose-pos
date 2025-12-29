@@ -1,74 +1,63 @@
-# Welcome to your Lovable project
+# Daily Dose POS System
 
-## Project info
+A high-performance, real-time Point of Sale (POS) system built for speed and reliability.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🚀 Features
+-   **Real-Time Updates**: Instant syncing between Cashier and Kitchen (Socket.io).
+-   **Local Network Support**: Works across multiple devices on the same WiFi.
+-   **Offline-First Architecture**: Persistent PostgreSQL storage.
+-   **Optimized Performance**: Lazy loading, Gzip compression, and database indexing.
 
-## How can I edit this code?
+## 🛠️ Prerequisites
+Before simple setup, ensure you have:
+1.  **Node.js** (v18 or higher)
+2.  **PostgreSQL** (v14 or higher)
 
-There are several ways of editing your application.
+## 📦 Installation & Setup
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+### 1. Clone & Install
+```bash
+git clone <your-repo-url>
+cd daily-dose
+npm install
 ```
 
-**Edit a file directly in GitHub**
+### 2. Configure Environment
+Create a `.env` file based on the example:
+```bash
+cp .env.example .env
+```
+Edit `.env` and set your PostgreSQL password:
+```ini
+PGPASSWORD=your_actual_postgres_password
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### 3. Initialize Database
+Run the automated setup script to create the database and tables:
+```bash
+npm run db:setup
+```
 
-**Use GitHub Codespaces**
+### 4. Build & Run
+Build the frontend and start the production server:
+```bash
+npm run build
+npm run start
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 📱 Accessing from Other Devices
+1.  Find your computer's IP address (e.g., `192.168.1.5`).
+2.  Update `.env` `VITE_API_URL` to `http://192.168.1.5:3000`.
+3.  Rebuild: `npm run build`.
+4.  Restart: `npm run start`.
+5.  Open `http://192.168.1.5:3000` on your tablet or phone.
 
-## What technologies are used for this project?
+## 🧱 Project Structure
+-   `src/`: React Frontend code.
+-   `server.js`: Express/Socket.io Backend.
+-   `scripts/`: Database management scripts.
+-   `schema.sql`: Database structure.
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
-"# daily-dose-pos" 
+## ⚡ Troubleshooting
+-   **Database Error?** Check your `PGPASSWORD` in `.env`.
+-   **Can't connect from phone?** Check your Windows Firewall and allow Node.js on port 3000.
