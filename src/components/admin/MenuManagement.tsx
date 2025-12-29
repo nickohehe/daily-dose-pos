@@ -16,7 +16,9 @@ export function MenuManagement() {
     const { items: menuItems, categories, addMenuItem, updateMenuItem, deleteMenuItem, addCategory, deleteCategory } = useMenuStore();
     const [newCategory, setNewCategory] = useState('');
     const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
-    const [currentItem, setCurrentItem] = useState<Partial<MenuItem>>({ name: '', price: 0, category: 'Basic', emoji: '' });
+    const [currentItem, setCurrentItem] = useState<Partial<MenuItem>>({ name: '', price: 0, category: 'Basic', emoji: '', flavors: [] });
+    const [priceInput, setPriceInput] = useState('');
+    const [flavorInput, setFlavorInput] = useState('');
     const [isEditing, setIsEditing] = useState(false);
 
     const handleAddCategory = () => {
@@ -25,16 +27,33 @@ export function MenuManagement() {
         setNewCategory('');
     };
 
+    const handleAddFlavor = () => {
+        if (!flavorInput.trim()) return;
+        const currentFlavors = currentItem.flavors || [];
+        if (!currentFlavors.includes(flavorInput.trim())) {
+            setCurrentItem({ ...currentItem, flavors: [...currentFlavors, flavorInput.trim()] });
+        }
+        setFlavorInput('');
+    };
+
+    const handleRemoveFlavor = (flavor: string) => {
+        const currentFlavors = currentItem.flavors || [];
+        setCurrentItem({ ...currentItem, flavors: currentFlavors.filter(f => f !== flavor) });
+    };
+
     const handleSaveItem = async () => {
-        if (!currentItem.name || !currentItem.price || !currentItem.category) {
+        const price = parseFloat(priceInput);
+        if (!currentItem.name || isNaN(price) || !currentItem.category) {
             toast.error('Please fill in all required fields');
             return;
         }
 
+        const itemToSave = { ...currentItem, price };
+
         if (isEditing && currentItem.id) {
-            await updateMenuItem(currentItem.id, currentItem);
+            await updateMenuItem(currentItem.id, itemToSave);
         } else {
-            await addMenuItem(currentItem as Omit<MenuItem, 'id'>);
+            await addMenuItem(itemToSave as Omit<MenuItem, 'id'>);
         }
         setIsItemDialogOpen(false);
         resetItemForm();
@@ -42,12 +61,14 @@ export function MenuManagement() {
 
     const openAddDialog = () => {
         resetItemForm();
+        setPriceInput('');
         setIsEditing(false);
         setIsItemDialogOpen(true);
     };
 
     const openEditDialog = (item: MenuItem) => {
         setCurrentItem({ ...item });
+        setPriceInput(item.price.toString());
         setIsEditing(true);
         setIsItemDialogOpen(true);
     };
@@ -55,7 +76,9 @@ export function MenuManagement() {
     const resetItemForm = () => {
         // Safe default: use first category or 'Basic' fallback
         const defaultCategory = categories.length > 0 ? categories[0] : 'Basic';
-        setCurrentItem({ name: '', price: 0, category: defaultCategory, emoji: '' });
+        setCurrentItem({ name: '', price: 0, category: defaultCategory, emoji: '', flavors: [] });
+        setPriceInput('');
+        setFlavorInput('');
     };
 
     return (
@@ -183,9 +206,10 @@ export function MenuManagement() {
                             <Input
                                 id="price"
                                 type="number"
-                                value={currentItem.price}
-                                onChange={(e) => setCurrentItem({ ...currentItem, price: parseFloat(e.target.value) || 0 })}
+                                value={priceInput}
+                                onChange={(e) => setPriceInput(e.target.value)}
                                 className="col-span-3"
+                                placeholder="0.00"
                             />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -219,6 +243,38 @@ export function MenuManagement() {
                                 className="col-span-3"
                                 placeholder="e.g. ☕"
                             />
+                        </div>
+                    </div>
+                    <div className="grid gap-2">
+                        <Label className="text-left">Flavors (Optional)</Label>
+                        <div className="flex gap-2">
+                            <Input
+                                value={flavorInput}
+                                onChange={(e) => setFlavorInput(e.target.value)}
+                                placeholder="Add flavor (e.g. Vanilla)"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleAddFlavor();
+                                    }
+                                }}
+                            />
+                            <Button type="button" onClick={handleAddFlavor} size="icon">
+                                <Plus className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {currentItem.flavors?.map((flavor) => (
+                                <div key={flavor} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-sm">
+                                    <span>{flavor}</span>
+                                    <button
+                                        onClick={() => handleRemoveFlavor(flavor)}
+                                        className="text-muted-foreground hover:text-destructive transition-colors"
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            ))}
                         </div>
                     </div>
                     <div className="flex justify-end gap-2">

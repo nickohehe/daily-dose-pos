@@ -4,11 +4,13 @@ export interface MenuItem {
   price: number;
   category: string;
   emoji?: string;
+  flavors?: string[];
 }
 
 export interface OrderItem {
   menuItem: MenuItem;
   quantity: number;
+  selectedFlavor?: string;
 }
 
 export interface Order {

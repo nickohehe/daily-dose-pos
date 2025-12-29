@@ -9,6 +9,20 @@ interface KitchenOrderCardProps {
 }
 
 const statusConfig = {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   new: {
     label: 'New Order',
     icon: Clock,
@@ -113,16 +127,23 @@ export function KitchenOrderCard({ order }: KitchenOrderCardProps) {
       </div>
 
       <div className="py-3 space-y-3 mb-4 border-t border-b border-border/50 border-dashed">
-        {order.items.map((item) => (
-          <div key={item.menuItem.id} className="flex items-start gap-3 group/item">
+        {order.items.map((item, index) => (
+          <div key={`${item.menuItem.id}-${index}`} className="flex items-start gap-3 group/item">
             <span className="text-xl bg-secondary/30 w-8 h-8 flex items-center justify-center rounded-lg shadow-sm border border-border/50">
               {item.menuItem.emoji}
             </span>
             <div className="flex-1">
               <div className="flex justify-between items-start">
-                <span className="font-medium text-sm text-foreground/90 group-hover/item:text-foreground transition-colors">
-                  {item.menuItem.name}
-                </span>
+                <div>
+                  <span className="font-medium text-sm text-foreground/90 group-hover/item:text-foreground transition-colors">
+                    {item.menuItem.name}
+                  </span>
+                  {item.selectedFlavor && (
+                    <p className="text-xs text-muted-foreground/80 font-medium">
+                      + {item.selectedFlavor}
+                    </p>
+                  )}
+                </div>
                 <span className="font-bold text-sm bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[11px] ml-2">
                   x{item.quantity}
                 </span>

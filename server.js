@@ -51,10 +51,16 @@ const initDb = async () => {
             await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS total_sales DECIMAL(10,2) DEFAULT 0`);
             // Add deleted column to menu_items for soft delete
             await query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE`);
+            // Add flavors column to menu_items (JSONB array of strings)
+            await query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS flavors JSONB DEFAULT '[]'`);
+
             // Add table_number to orders
             await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS table_number INTEGER`);
             // Add beeper_number to orders
             await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS beeper_number INTEGER`);
+
+            // Add selected_flavor to order_items
+            await query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS selected_flavor VARCHAR(255)`);
         } catch (e) { /* ignore if exists */ }
 
         console.log('Sessions table ensured');
@@ -81,7 +87,8 @@ const attachItemsToOrders = async (orders) => {
                 name: item.menu_item_name_snapshot,
                 price: parseFloat(item.menu_item_price_snapshot)
             },
-            quantity: item.quantity
+            quantity: item.quantity,
+            selectedFlavor: item.selected_flavor
         });
     });
 
@@ -104,7 +111,9 @@ app.get('/api/menu', async (req, res) => {
             ...item,
             price: parseFloat(item.price),
             isAvailable: item.is_available,
-            image: item.image_url // Ensure image property is populated if needed
+            image: item.image_url,
+            // Ensure flavors is an array
+            flavors: Array.isArray(item.flavors) ? item.flavors : []
         }));
 
         res.json({
@@ -123,8 +132,8 @@ app.post('/api/menu/items', async (req, res) => {
 
     try {
         await query(
-            `INSERT INTO menu_items (id, name, price, category, emoji, image_url, description, is_available, deleted)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            `INSERT INTO menu_items (id, name, price, category, emoji, image_url, description, is_available, deleted, flavors)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
             [
                 newItem.id,
                 newItem.name,
@@ -134,7 +143,8 @@ app.post('/api/menu/items', async (req, res) => {
                 newItem.image,
                 newItem.description,
                 newItem.isAvailable ?? true,
-                false // Explicitly not deleted
+                false, // Explicitly not deleted
+                JSON.stringify(newItem.flavors || [])
             ]
         );
         res.status(201).json(newItem);
@@ -160,6 +170,7 @@ app.put('/api/menu/items/:id', async (req, res) => {
         if (updates.emoji !== undefined) { fields.push(`emoji = $${idx++}`); values.push(updates.emoji); }
         if (updates.image !== undefined) { fields.push(`image_url = $${idx++}`); values.push(updates.image); }
         if (updates.isAvailable !== undefined) { fields.push(`is_available = $${idx++}`); values.push(updates.isAvailable); }
+        if (updates.flavors !== undefined) { fields.push(`flavors = $${idx++}`); values.push(JSON.stringify(updates.flavors)); }
 
         if (fields.length === 0) return res.json({ message: 'No updates provided' });
 
@@ -174,7 +185,8 @@ app.put('/api/menu/items/:id', async (req, res) => {
             ...updatedItem,
             price: parseFloat(updatedItem.price),
             isAvailable: updatedItem.is_available,
-            image: updatedItem.image_url
+            image: updatedItem.image_url,
+            flavors: Array.isArray(updatedItem.flavors) ? updatedItem.flavors : []
         });
         io.emit('menu:update');
     } catch (err) {
@@ -269,14 +281,15 @@ app.post('/api/orders', async (req, res) => {
         if (newOrder.items && newOrder.items.length > 0) {
             for (const item of newOrder.items) {
                 await client.query(
-                    `INSERT INTO order_items (order_id, menu_item_id, menu_item_name_snapshot, menu_item_price_snapshot, quantity)
-                     VALUES ($1, $2, $3, $4, $5)`,
+                    `INSERT INTO order_items (order_id, menu_item_id, menu_item_name_snapshot, menu_item_price_snapshot, quantity, selected_flavor)
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
                     [
                         newOrder.id,
                         item.menuItem.id,
                         item.menuItem.name,
                         item.menuItem.price,
-                        item.quantity
+                        item.quantity,
+                        item.selectedFlavor || null
                     ]
                 );
             }

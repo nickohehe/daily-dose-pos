@@ -8,9 +8,9 @@ interface OrderState {
   currentOrder: OrderItem[];
   orders: Order[];
   offlineQueue: any[]; // temporarily any to match payload structure
-  addToOrder: (item: MenuItem) => void;
-  removeFromOrder: (itemId: string) => void;
-  updateQuantity: (itemId: string, quantity: number) => void;
+  addToOrder: (item: MenuItem, flavor?: string) => void;
+  removeFromOrder: (itemId: string, flavor?: string) => void;
+  updateQuantity: (itemId: string, flavor: string | undefined, quantity: number) => void;
   clearOrder: () => void;
   submitOrder: (tableNumber?: number, beeperNumber?: number) => Promise<Order | undefined>;
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
@@ -34,38 +34,38 @@ export const useOrderStore = create<OrderState>()(
       offlineQueue: [],
       pendingUpdates: {},
 
-      addToOrder: (item: MenuItem) => {
+      addToOrder: (item: MenuItem, flavor?: string) => {
         set((state) => {
-          const existing = state.currentOrder.find(o => o.menuItem.id === item.id);
+          const existing = state.currentOrder.find(o => o.menuItem.id === item.id && o.selectedFlavor === flavor);
           if (existing) {
             return {
               currentOrder: state.currentOrder.map(o =>
-                o.menuItem.id === item.id
+                (o.menuItem.id === item.id && o.selectedFlavor === flavor)
                   ? { ...o, quantity: o.quantity + 1 }
                   : o
               ),
             };
           }
           return {
-            currentOrder: [...state.currentOrder, { menuItem: item, quantity: 1 }],
+            currentOrder: [...state.currentOrder, { menuItem: item, quantity: 1, selectedFlavor: flavor }],
           };
         });
       },
 
-      removeFromOrder: (itemId: string) => {
+      removeFromOrder: (itemId: string, flavor?: string) => {
         set((state) => ({
-          currentOrder: state.currentOrder.filter(o => o.menuItem.id !== itemId),
+          currentOrder: state.currentOrder.filter(o => !(o.menuItem.id === itemId && o.selectedFlavor === flavor)),
         }));
       },
 
-      updateQuantity: (itemId: string, quantity: number) => {
+      updateQuantity: (itemId: string, flavor: string | undefined, quantity: number) => {
         if (quantity <= 0) {
-          get().removeFromOrder(itemId);
+          get().removeFromOrder(itemId, flavor);
           return;
         }
         set((state) => ({
           currentOrder: state.currentOrder.map(o =>
-            o.menuItem.id === itemId ? { ...o, quantity } : o
+            (o.menuItem.id === itemId && o.selectedFlavor === flavor) ? { ...o, quantity } : o
           ),
         }));
       },
