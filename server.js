@@ -53,13 +53,17 @@ const initDb = async () => {
             await query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE`);
             // Add flavors column to menu_items (JSONB array of strings)
             await query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS flavors JSONB DEFAULT '[]'`);
+            await query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS max_flavors INTEGER DEFAULT 1`);
 
             // Add table_number to orders
             await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS table_number INTEGER`);
             // Add beeper_number to orders
             await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS beeper_number INTEGER`);
 
-            // Add selected_flavor to order_items
+            // Add selected_flavors to order_items (Array support)
+            await query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS selected_flavors JSONB DEFAULT '[]'`);
+
+            // Backwards compatibility for legacy code (soft deprecated)
             await query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS selected_flavor VARCHAR(255)`);
 
             // Add is_test to orders for testing mode
@@ -84,6 +88,13 @@ const attachItemsToOrders = async (orders) => {
     const itemsMap = {};
     items.forEach(item => {
         if (!itemsMap[item.order_id]) itemsMap[item.order_id] = [];
+
+        // Coalesce legacy selected_flavor into the array if needed
+        let finalFlavors = item.selected_flavors || [];
+        if (!finalFlavors.length && item.selected_flavor) {
+            finalFlavors = [item.selected_flavor];
+        }
+
         itemsMap[item.order_id].push({
             menuItem: {
                 id: item.menu_item_id,
@@ -91,7 +102,10 @@ const attachItemsToOrders = async (orders) => {
                 price: parseFloat(item.menu_item_price_snapshot)
             },
             quantity: item.quantity,
-            selectedFlavor: item.selected_flavor
+            selectedFlavors: finalFlavors,
+            // Keep legacy field for now if frontend expects it, or better yet, deprecate it.
+            // We'll map the first one to support old frontend logic if it exists
+            selectedFlavor: finalFlavors[0] || null
         });
     });
 
@@ -119,8 +133,8 @@ app.get('/api/menu', async (req, res) => {
             price: parseFloat(item.price),
             isAvailable: item.is_available,
             image: item.image_url,
-            // Ensure flavors is an array
-            flavors: Array.isArray(item.flavors) ? item.flavors : []
+            flavors: Array.isArray(item.flavors) ? item.flavors : [],
+            maxFlavors: item.max_flavors || 1
         }));
 
         res.json({
@@ -139,8 +153,8 @@ app.post('/api/menu/items', async (req, res) => {
 
     try {
         await query(
-            `INSERT INTO menu_items (id, name, price, category, emoji, image_url, description, is_available, deleted, flavors)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            `INSERT INTO menu_items (id, name, price, category, emoji, image_url, description, is_available, deleted, flavors, max_flavors)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
             [
                 newItem.id,
                 newItem.name,
@@ -150,8 +164,9 @@ app.post('/api/menu/items', async (req, res) => {
                 newItem.image,
                 newItem.description,
                 newItem.isAvailable ?? true,
-                false, // Explicitly not deleted
-                JSON.stringify(newItem.flavors || [])
+                false,
+                JSON.stringify(newItem.flavors || []),
+                newItem.maxFlavors || 1
             ]
         );
         res.status(201).json(newItem);
@@ -178,6 +193,7 @@ app.put('/api/menu/items/:id', async (req, res) => {
         if (updates.image !== undefined) { fields.push(`image_url = $${idx++}`); values.push(updates.image); }
         if (updates.isAvailable !== undefined) { fields.push(`is_available = $${idx++}`); values.push(updates.isAvailable); }
         if (updates.flavors !== undefined) { fields.push(`flavors = $${idx++}`); values.push(JSON.stringify(updates.flavors)); }
+        if (updates.maxFlavors !== undefined) { fields.push(`max_flavors = $${idx++}`); values.push(updates.maxFlavors); }
 
         if (fields.length === 0) return res.json({ message: 'No updates provided' });
 
@@ -193,7 +209,8 @@ app.put('/api/menu/items/:id', async (req, res) => {
             price: parseFloat(updatedItem.price),
             isAvailable: updatedItem.is_available,
             image: updatedItem.image_url,
-            flavors: Array.isArray(updatedItem.flavors) ? updatedItem.flavors : []
+            flavors: Array.isArray(updatedItem.flavors) ? updatedItem.flavors : [],
+            maxFlavors: updatedItem.max_flavors || 1
         });
         io.emit('menu:update');
     } catch (err) {
@@ -294,8 +311,12 @@ app.post('/api/orders', async (req, res) => {
 
         if (newOrder.items && newOrder.items.length > 0) {
             for (const item of newOrder.items) {
+                // Determine flavors to save.
+                // Support both legacy single selectedFlavor and new selectedFlavors array
+                const flavorsToSave = item.selectedFlavors || (item.selectedFlavor ? [item.selectedFlavor] : []);
+
                 await client.query(
-                    `INSERT INTO order_items (order_id, menu_item_id, menu_item_name_snapshot, menu_item_price_snapshot, quantity, selected_flavor)
+                    `INSERT INTO order_items (order_id, menu_item_id, menu_item_name_snapshot, menu_item_price_snapshot, quantity, selected_flavors)
                      VALUES ($1, $2, $3, $4, $5, $6)`,
                     [
                         newOrder.id,
@@ -303,7 +324,7 @@ app.post('/api/orders', async (req, res) => {
                         item.menuItem.name,
                         item.menuItem.price,
                         item.quantity,
-                        item.selectedFlavor || null
+                        JSON.stringify(flavorsToSave)
                     ]
                 );
             }

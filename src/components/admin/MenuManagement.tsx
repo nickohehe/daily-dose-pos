@@ -20,6 +20,7 @@ export function MenuManagement() {
     const [priceInput, setPriceInput] = useState('');
     const [flavorInput, setFlavorInput] = useState('');
     const [isEditing, setIsEditing] = useState(false);
+    const [isMultiFlavor, setIsMultiFlavor] = useState(false);
 
     const handleAddCategory = () => {
         if (!newCategory.trim()) return;
@@ -63,6 +64,7 @@ export function MenuManagement() {
         resetItemForm();
         setPriceInput('');
         setIsEditing(false);
+        setIsMultiFlavor(false);
         setIsItemDialogOpen(true);
     };
 
@@ -70,6 +72,7 @@ export function MenuManagement() {
         setCurrentItem({ ...item });
         setPriceInput(item.price.toString());
         setIsEditing(true);
+        setIsMultiFlavor((item.maxFlavors || 1) > 1);
         setIsItemDialogOpen(true);
     };
 
@@ -245,6 +248,66 @@ export function MenuManagement() {
                             />
                         </div>
                     </div>
+
+                    {/* Max Flavors Configuration */}
+                    <div className="space-y-3 py-2 border-t border-border/50">
+                        <div className="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                id="multiFlavors"
+                                checked={isMultiFlavor}
+                                onChange={(e) => {
+                                    setIsMultiFlavor(e.target.checked);
+                                    if (e.target.checked && (currentItem.maxFlavors || 1) < 2) {
+                                        setCurrentItem({ ...currentItem, maxFlavors: 2 });
+                                    } else if (!e.target.checked) {
+                                        setCurrentItem({ ...currentItem, maxFlavors: 1 });
+                                    }
+                                }}
+                                className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
+                            />
+                            <Label htmlFor="multiFlavors" className="font-normal cursor-pointer select-none">
+                                Allow Multiple Flavors
+                            </Label>
+                        </div>
+
+                        {isMultiFlavor && (
+                            <div className="grid grid-cols-4 items-center gap-4 animate-in slide-in-from-top-2 fade-in duration-200">
+                                <Label htmlFor="maxFlavorCount" className="text-right text-sm text-muted-foreground">
+                                    Max Selection
+                                </Label>
+                                <Input
+                                    id="maxFlavorCount"
+                                    type="number"
+                                    min="2"
+                                    max="10"
+                                    value={currentItem.maxFlavors || ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        // Allow empty string for clearing
+                                        if (val === '') {
+                                            // @ts-ignore - Temporary invalid state for editing
+                                            setCurrentItem({ ...currentItem, maxFlavors: '' });
+                                            return;
+                                        }
+                                        const num = parseInt(val);
+                                        if (!isNaN(num)) {
+                                            setCurrentItem({ ...currentItem, maxFlavors: num });
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        // Enforce min value on blur
+                                        const val = currentItem.maxFlavors;
+                                        if (!val || typeof val !== 'number' || val < 2) {
+                                            setCurrentItem({ ...currentItem, maxFlavors: 2 });
+                                        }
+                                    }}
+                                    className="col-span-2 h-8"
+                                />
+                            </div>
+                        )}
+                    </div>
+
                     <div className="grid gap-2">
                         <Label className="text-left">Flavors (Optional)</Label>
                         <div className="flex gap-2">
@@ -283,6 +346,6 @@ export function MenuManagement() {
                     </div>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     );
 }

@@ -16,6 +16,12 @@ const runOptimization = async () => {
         console.log('Adding index on order_items(order_id)...');
         await query(`CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);`);
 
+        console.log('Adding index on order_items(menu_item_id)...');
+        await query(`CREATE INDEX IF NOT EXISTS idx_order_items_menu_item_id ON order_items(menu_item_id);`);
+
+        console.log('Adding index on menu_items(category)...');
+        await query(`CREATE INDEX IF NOT EXISTS idx_menu_items_category ON menu_items(category);`);
+
         console.log('Optimization complete! Indexes created.');
     } catch (err) {
         console.error('Optimization failed:', err);

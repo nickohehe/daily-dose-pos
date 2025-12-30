@@ -71,15 +71,15 @@ export function OrderPanel() {
         ) : (
           currentOrder.map((orderItem) => (
             <div
-              key={`${orderItem.menuItem.id}-${orderItem.selectedFlavor || 'default'}`}
+              key={`${orderItem.menuItem.id}-${orderItem.selectedFlavors?.join('-') || 'default'}`}
               className="group flex items-center gap-3 p-3 bg-card/40 hover:bg-card/80 border border-transparent hover:border-border/50 rounded-xl transition-all duration-200 animate-in slide-in-from-right-4 fade-in duration-300"
             >
               <span className="text-xl">{orderItem.menuItem.emoji}</span>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate">{orderItem.menuItem.name}</p>
-                {orderItem.selectedFlavor && (
-                  <p className="text-xs text-primary/80 font-medium">
-                    {orderItem.selectedFlavor}
+                {orderItem.selectedFlavors && orderItem.selectedFlavors.length > 0 && (
+                  <p className="text-xs text-primary/80 font-medium my-0.5">
+                    {orderItem.selectedFlavors.join(', ')}
                   </p>
                 )}
                 <p className="text-sm text-muted-foreground">
@@ -91,7 +91,7 @@ export function OrderPanel() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => updateQuantity(orderItem.menuItem.id, orderItem.selectedFlavor, orderItem.quantity - 1)}
+                  onClick={() => updateQuantity(orderItem.menuItem.id, orderItem.selectedFlavors, orderItem.quantity - 1)}
                 >
                   <Minus className="w-4 h-4" />
                 </Button>
@@ -100,7 +100,7 @@ export function OrderPanel() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => updateQuantity(orderItem.menuItem.id, orderItem.selectedFlavor, orderItem.quantity + 1)}
+                  onClick={() => updateQuantity(orderItem.menuItem.id, orderItem.selectedFlavors, orderItem.quantity + 1)}
                 >
                   <Plus className="w-4 h-4" />
                 </Button>
@@ -108,7 +108,7 @@ export function OrderPanel() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-destructive hover:text-destructive"
-                  onClick={() => removeFromOrder(orderItem.menuItem.id, orderItem.selectedFlavor)}
+                  onClick={() => removeFromOrder(orderItem.menuItem.id, orderItem.selectedFlavors)}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>

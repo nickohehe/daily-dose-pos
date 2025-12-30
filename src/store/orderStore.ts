@@ -8,9 +8,9 @@ interface OrderState {
   currentOrder: OrderItem[];
   orders: Order[];
   offlineQueue: any[]; // temporarily any to match payload structure
-  addToOrder: (item: MenuItem, flavor?: string) => void;
-  removeFromOrder: (itemId: string, flavor?: string) => void;
-  updateQuantity: (itemId: string, flavor: string | undefined, quantity: number) => void;
+  addToOrder: (item: MenuItem, flavors?: string[]) => void;
+  removeFromOrder: (itemId: string, flavors?: string[]) => void;
+  updateQuantity: (itemId: string, flavors: string[] | undefined, quantity: number) => void;
   clearOrder: () => void;
   submitOrder: (tableNumber?: number, beeperNumber?: number) => Promise<Order | undefined>;
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
@@ -26,6 +26,16 @@ interface OrderState {
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+// Helper to compare flavor arrays
+const areFlavorsEqual = (a?: string[], b?: string[]) => {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((val, index) => val === sortedB[index]);
+};
+
 export const useOrderStore = create<OrderState>()(
   persist(
     (set, get) => ({
@@ -34,38 +44,47 @@ export const useOrderStore = create<OrderState>()(
       offlineQueue: [],
       pendingUpdates: {},
 
-      addToOrder: (item: MenuItem, flavor?: string) => {
+      addToOrder: (item: MenuItem, flavors?: string[]) => {
         set((state) => {
-          const existing = state.currentOrder.find(o => o.menuItem.id === item.id && o.selectedFlavor === flavor);
+          const existing = state.currentOrder.find(o =>
+            o.menuItem.id === item.id && areFlavorsEqual(o.selectedFlavors, flavors)
+          );
           if (existing) {
             return {
               currentOrder: state.currentOrder.map(o =>
-                (o.menuItem.id === item.id && o.selectedFlavor === flavor)
+                (o.menuItem.id === item.id && areFlavorsEqual(o.selectedFlavors, flavors))
                   ? { ...o, quantity: o.quantity + 1 }
                   : o
               ),
             };
           }
           return {
-            currentOrder: [...state.currentOrder, { menuItem: item, quantity: 1, selectedFlavor: flavor }],
+            currentOrder: [...state.currentOrder, {
+              menuItem: item,
+              quantity: 1,
+              selectedFlavors: flavors,
+              selectedFlavor: flavors?.[0] // Backward compat
+            }],
           };
         });
       },
 
-      removeFromOrder: (itemId: string, flavor?: string) => {
+      removeFromOrder: (itemId: string, flavors?: string[]) => {
         set((state) => ({
-          currentOrder: state.currentOrder.filter(o => !(o.menuItem.id === itemId && o.selectedFlavor === flavor)),
+          currentOrder: state.currentOrder.filter(o =>
+            !(o.menuItem.id === itemId && areFlavorsEqual(o.selectedFlavors, flavors))
+          ),
         }));
       },
 
-      updateQuantity: (itemId: string, flavor: string | undefined, quantity: number) => {
+      updateQuantity: (itemId: string, flavors: string[] | undefined, quantity: number) => {
         if (quantity <= 0) {
-          get().removeFromOrder(itemId, flavor);
+          get().removeFromOrder(itemId, flavors);
           return;
         }
         set((state) => ({
           currentOrder: state.currentOrder.map(o =>
-            (o.menuItem.id === itemId && o.selectedFlavor === flavor) ? { ...o, quantity } : o
+            (o.menuItem.id === itemId && areFlavorsEqual(o.selectedFlavors, flavors)) ? { ...o, quantity } : o
           ),
         }));
       },

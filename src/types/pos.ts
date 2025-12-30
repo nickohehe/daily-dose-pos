@@ -5,12 +5,14 @@ export interface MenuItem {
   category: string;
   emoji?: string;
   flavors?: string[];
+  maxFlavors?: number;
 }
 
 export interface OrderItem {
   menuItem: MenuItem;
   quantity: number;
-  selectedFlavor?: string;
+  selectedFlavor?: string; // @deprecated
+  selectedFlavors?: string[];
 }
 
 export interface Order {

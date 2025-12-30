@@ -138,9 +138,9 @@ export function KitchenOrderCard({ order }: KitchenOrderCardProps) {
                   <span className="font-medium text-sm text-foreground/90 group-hover/item:text-foreground transition-colors">
                     {item.menuItem.name}
                   </span>
-                  {item.selectedFlavor && (
+                  {item.selectedFlavors && item.selectedFlavors.length > 0 && (
                     <p className="text-xs text-muted-foreground/80 font-medium">
-                      + {item.selectedFlavor}
+                      + {item.selectedFlavors.join(', ')}
                     </p>
                   )}
                 </div>

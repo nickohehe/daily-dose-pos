@@ -13,11 +13,12 @@ import { Button } from '@/components/ui/button';
 
 interface MenuItemCardProps {
   item: MenuItem;
-  onAdd: (item: MenuItem, flavor?: string) => void;
+  onAdd: (item: MenuItem, flavors?: string[]) => void;
 }
 
 export function MenuItemCard({ item, onAdd }: MenuItemCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedFlavors, setSelectedFlavors] = useState<string[]>([]);
 
   // Check if item is in cart to show active state
   const { currentOrder } = useOrderStore();
@@ -27,16 +28,39 @@ export function MenuItemCard({ item, onAdd }: MenuItemCardProps) {
 
   const handleClick = () => {
     if (item.flavors && item.flavors.length > 0) {
+      setSelectedFlavors([]); // Reset on open
       setIsDialogOpen(true);
     } else {
       onAdd(item);
     }
   };
 
-  const handleFlavorSelect = (flavor: string) => {
-    onAdd(item, flavor);
+  const toggleFlavor = (flavor: string) => {
+    setSelectedFlavors(prev => {
+      const isSelected = prev.includes(flavor);
+      if (isSelected) {
+        return prev.filter(f => f !== flavor);
+      } else {
+        // Enforce maxFlavors
+        const max = item.maxFlavors || 1;
+        if (prev.length >= max) {
+          // Optional: You could replace the last one, or just stop adding.
+          // Let's stop adding for clarity, or maybe toast?
+          // For now, simple implementation:
+          return prev;
+        }
+        return [...prev, flavor];
+      }
+    });
+  };
+
+  const handleConfirm = () => {
+    onAdd(item, selectedFlavors.length > 0 ? selectedFlavors : undefined);
     setIsDialogOpen(false);
   };
+
+  const isSelected = (flavor: string) => selectedFlavors.includes(flavor);
+  const max = item.maxFlavors || 1;
 
   return (
     <>
@@ -84,21 +108,33 @@ export function MenuItemCard({ item, onAdd }: MenuItemCardProps) {
           <DialogHeader>
             <DialogTitle>Select Flavor</DialogTitle>
             <DialogDescription>
-              Choose a flavor for {item.name}
+              Choose up to {max} flavor{max > 1 ? 's' : ''} for {item.name}
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3 py-4">
             {item.flavors?.map((flavor) => (
               <Button
                 key={flavor}
-                variant="outline"
-                className="h-16 text-lg hover:border-primary hover:bg-primary/5"
-                onClick={() => handleFlavorSelect(flavor)}
+                variant={isSelected(flavor) ? "default" : "outline"}
+                className={cn(
+                  "h-16 text-lg transition-all",
+                  isSelected(flavor) ? "border-primary" : "hover:border-primary hover:bg-primary/5"
+                )}
+                onClick={() => toggleFlavor(flavor)}
               >
                 {flavor}
               </Button>
             ))}
           </div>
+          <Button
+            onClick={handleConfirm}
+            className="w-full mt-2"
+            size="lg"
+          // Optional: disable if 0 selected?
+          // disabled={selectedFlavors.length === 0}
+          >
+            Add to Order
+          </Button>
         </DialogContent>
       </Dialog>
     </>

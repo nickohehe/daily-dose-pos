@@ -42,3 +42,10 @@ CREATE TABLE IF NOT EXISTS order_items (
     menu_item_price_snapshot DECIMAL(10, 2), -- Snapshot price
     quantity INTEGER NOT NULL DEFAULT 1
 );
+
+-- Optimization Indices
+CREATE INDEX IF NOT EXISTS idx_menu_items_category ON menu_items(category);
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_menu_item_id ON order_items(menu_item_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
