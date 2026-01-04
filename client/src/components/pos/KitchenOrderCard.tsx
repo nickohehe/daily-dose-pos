@@ -69,7 +69,7 @@ export function KitchenOrderCard({ order }: KitchenOrderCardProps) {
     };
 
     updateTime();
-    const interval = setInterval(updateTime, 30000); // Update every 30s
+    const interval = setInterval(updateTime, 5000); // Update every 5s
     return () => clearInterval(interval);
   }, [order.createdAt]); // Re-run if order time changes (unlikely but safe)
 
