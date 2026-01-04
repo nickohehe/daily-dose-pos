@@ -115,6 +115,9 @@ const attachItemsToOrders = async (orders) => {
     return orders.map(order => ({
         ...order,
         total: parseFloat(order.total_amount),
+        createdAt: order.created_at, // Map snake_case to camelCase
+        tableNumber: order.table_number,
+        beeperNumber: order.beeper_number,
         items: itemsMap[order.id] || []
     }));
 };
