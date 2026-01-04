@@ -126,7 +126,7 @@ export function OrderPanel() {
         <div className="space-y-2 pb-2 border-b border-border/50">
           <div className="flex justify-between items-center text-base">
             <span className="text-muted-foreground">Total</span>
-            <span className="font-bold text-xl text-primary">₱{total.toFixed(2)}</span>
+            <span className="font-bold text-xl text-black dark:text-primary">₱{total.toFixed(2)}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
