@@ -60,12 +60,22 @@ export function KitchenOrderCard({ order }: KitchenOrderCardProps) {
   useEffect(() => {
     const updateTime = () => {
       const d = new Date(order.createdAt);
-      const diffMs = Date.now() - d.getTime();
-      const minutes = Math.floor(diffMs / 60000);
+      if (isNaN(d.getTime())) {
+        setTimeAgo('Invalid Date');
+        return;
+      }
 
-      if (minutes < 1) setTimeAgo('Just now');
-      else if (minutes === 1) setTimeAgo('1 min ago');
-      else setTimeAgo(`${minutes} mins ago`);
+      const diffMs = Date.now() - d.getTime();
+      const seconds = Math.floor(diffMs / 1000);
+      const minutes = Math.floor(seconds / 60);
+
+      if (minutes < 1) {
+        setTimeAgo(`Just now (${seconds}s)`);
+      } else if (minutes === 1) {
+        setTimeAgo('1 min ago');
+      } else {
+        setTimeAgo(`${minutes} mins ago`);
+      }
     };
 
     updateTime();
