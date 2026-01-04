@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { useOrderStore } from '@/store/orderStore';
 import { useMenuStore } from '@/store/menuStore';
 import { toast } from 'sonner';
@@ -183,10 +185,18 @@ export default function AdminDashboard() {
 
     return (
         <div className="container mx-auto p-4 md:p-6 max-w-7xl animate-in fade-in duration-500">
-            <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8 flex items-center gap-2 md:gap-3">
-                <LayoutDashboard className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-                Admin Dashboard
-            </h1>
+            <div className="flex items-center justify-between mb-6 md:mb-8">
+                <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2 md:gap-3">
+                    <LayoutDashboard className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+                    Admin Dashboard
+                </h1>
+                <Link to="/">
+                    <Button variant="outline" size="sm" className="gap-2">
+                        <Store className="w-4 h-4" />
+                        Back to POS
+                    </Button>
+                </Link>
+            </div>
 
             <Tabs defaultValue="overview" className="space-y-8">
                 <TabsList className="grid w-full grid-cols-4 lg:w-[400px]">

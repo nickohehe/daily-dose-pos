@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { ChefHat, CreditCard } from 'lucide-react';
+import { ChefHat, CreditCard, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ReadyOrdersSheet } from './ReadyOrdersSheet';
@@ -56,6 +56,19 @@ export function POSHeader() {
               <Link to="/kitchen" className="flex items-center gap-2">
                 <ChefHat className="w-5 h-5" />
                 <span className="hidden sm:inline">Kitchen</span>
+              </Link>
+            </Button>
+
+            {/* Admin Button - Discreet */}
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground/50 hover:text-foreground"
+            >
+              <Link to="/admin">
+                <Lock className="w-4 h-4" />
+                <span className="sr-only">Admin</span>
               </Link>
             </Button>
           </nav>
