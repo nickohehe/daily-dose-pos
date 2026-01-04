@@ -24,13 +24,6 @@ export default function CashierPage() {
   useEffect(() => {
     fetchOrders();
     fetchMenu();
-
-    const interval = setInterval(() => {
-      fetchOrders();
-      fetchMenu();
-    }, 5000);
-
-    return () => clearInterval(interval);
   }, [fetchOrders, fetchMenu]);
 
   const filteredItems =

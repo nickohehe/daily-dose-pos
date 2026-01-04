@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { io } from 'socket.io-client';
 import { MenuItem, Category } from '@/types/pos';
 import { toast } from 'sonner';
+import { fetchWithRetry } from '@/lib/api';
 
 interface MenuState {
     items: MenuItem[];
@@ -25,14 +26,15 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     fetchMenu: async () => {
         set({ isLoading: true });
         try {
-            const res = await fetch(`${API_URL}/api/menu`);
+            const res = await fetchWithRetry(`${API_URL}/api/menu`);
             if (res.ok) {
                 const data = await res.json();
                 set({ items: data.items, categories: data.categories });
             }
         } catch (error) {
             console.error('Failed to fetch menu:', error);
-            toast.error('Failed to load menu');
+            // Only show toast after all retries fail
+            toast.error('Connection failed. Could not load menu.');
         } finally {
             set({ isLoading: false });
         }
@@ -40,7 +42,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
     addMenuItem: async (item) => {
         try {
-            const res = await fetch(`${API_URL}/api/menu/items`, {
+            const res = await fetchWithRetry(`${API_URL}/api/menu/items`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(item),
@@ -60,7 +62,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
     updateMenuItem: async (id, updates) => {
         try {
-            const res = await fetch(`${API_URL}/api/menu/items/${id}`, {
+            const res = await fetchWithRetry(`${API_URL}/api/menu/items/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates),
@@ -81,9 +83,8 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     },
 
     deleteMenuItem: async (id) => {
-        if (!confirm('Are you sure you want to delete this item?')) return;
         try {
-            const res = await fetch(`${API_URL}/api/menu/items/${id}`, {
+            const res = await fetchWithRetry(`${API_URL}/api/menu/items/${id}`, {
                 method: 'DELETE',
             });
             if (res.ok) {
@@ -102,7 +103,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
     addCategory: async (category) => {
         try {
-            const res = await fetch(`${API_URL}/api/menu/categories`, {
+            const res = await fetchWithRetry(`${API_URL}/api/menu/categories`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ category }),
@@ -119,9 +120,8 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     },
 
     deleteCategory: async (category) => {
-        if (!confirm(`Delete category "${category}"?`)) return;
         try {
-            const res = await fetch(`${API_URL}/api/menu/categories/${encodeURIComponent(category)}`, {
+            const res = await fetchWithRetry(`${API_URL}/api/menu/categories/${encodeURIComponent(category)}`, {
                 method: 'DELETE',
             });
             if (res.ok) {

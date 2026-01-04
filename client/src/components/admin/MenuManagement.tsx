@@ -10,6 +10,17 @@ import { MenuItem } from '@/types/pos';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from 'sonner';
 
 export function MenuManagement() {
@@ -21,6 +32,10 @@ export function MenuManagement() {
     const [flavorInput, setFlavorInput] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [isMultiFlavor, setIsMultiFlavor] = useState(false);
+
+    // Alert Dialog States
+    const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string } | null>(null);
+    const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
 
     const handleAddCategory = () => {
         if (!newCategory.trim()) return;
@@ -112,7 +127,7 @@ export function MenuManagement() {
                                         variant="ghost"
                                         size="sm"
                                         className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                        onClick={() => deleteCategory(cat)}
+                                        onClick={() => setCategoryToDelete(cat)}
                                         aria-label={`Delete ${cat} category`}
                                     >
                                         <Trash2 className="h-4 w-4" />
@@ -160,7 +175,7 @@ export function MenuManagement() {
                                                 <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)} aria-label={`Edit ${item.name}`}>
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteMenuItem(item.id)} aria-label={`Delete ${item.name}`}>
+                                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setItemToDelete({ id: item.id, name: item.name })} aria-label={`Delete ${item.name}`}>
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -250,32 +265,38 @@ export function MenuManagement() {
                     </div>
 
                     {/* Max Flavors Configuration */}
-                    <div className="space-y-3 py-2 border-t border-border/50">
-                        <div className="flex items-center space-x-2">
-                            <input
-                                type="checkbox"
+                    <div className="space-y-4 py-4 border-t border-border/40">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="multiFlavors" className="flex flex-col gap-1 cursor-pointer">
+                                <span className="text-sm font-medium">Allow Multiple Flavors</span>
+                                <span className="text-xs text-muted-foreground font-normal">
+                                    Customers can select more than one flavor
+                                </span>
+                            </Label>
+                            <Switch
                                 id="multiFlavors"
                                 checked={isMultiFlavor}
-                                onChange={(e) => {
-                                    setIsMultiFlavor(e.target.checked);
-                                    if (e.target.checked && (currentItem.maxFlavors || 1) < 2) {
+                                onCheckedChange={(checked) => {
+                                    setIsMultiFlavor(checked);
+                                    if (checked && (currentItem.maxFlavors || 1) < 2) {
                                         setCurrentItem({ ...currentItem, maxFlavors: 2 });
-                                    } else if (!e.target.checked) {
+                                    } else if (!checked) {
                                         setCurrentItem({ ...currentItem, maxFlavors: 1 });
                                     }
                                 }}
-                                className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
                             />
-                            <Label htmlFor="multiFlavors" className="font-normal cursor-pointer select-none">
-                                Allow Multiple Flavors
-                            </Label>
                         </div>
 
                         {isMultiFlavor && (
-                            <div className="grid grid-cols-4 items-center gap-4 animate-in slide-in-from-top-2 fade-in duration-200">
-                                <Label htmlFor="maxFlavorCount" className="text-right text-sm text-muted-foreground">
-                                    Max Selection
-                                </Label>
+                            <div className="flex items-center justify-between gap-4 pl-1 animate-in slide-in-from-top-2 fade-in duration-300">
+                                <div className="flex flex-col gap-1">
+                                    <Label htmlFor="maxFlavorCount" className="text-sm font-medium">
+                                        Max Selection Limit
+                                    </Label>
+                                    <span className="text-xs text-muted-foreground">
+                                        How many flavors can they pick?
+                                    </span>
+                                </div>
                                 <Input
                                     id="maxFlavorCount"
                                     type="number"
@@ -284,9 +305,8 @@ export function MenuManagement() {
                                     value={currentItem.maxFlavors || ''}
                                     onChange={(e) => {
                                         const val = e.target.value;
-                                        // Allow empty string for clearing
                                         if (val === '') {
-                                            // @ts-ignore - Temporary invalid state for editing
+                                            // @ts-ignore
                                             setCurrentItem({ ...currentItem, maxFlavors: '' });
                                             return;
                                         }
@@ -296,13 +316,12 @@ export function MenuManagement() {
                                         }
                                     }}
                                     onBlur={() => {
-                                        // Enforce min value on blur
                                         const val = currentItem.maxFlavors;
                                         if (!val || typeof val !== 'number' || val < 2) {
                                             setCurrentItem({ ...currentItem, maxFlavors: 2 });
                                         }
                                     }}
-                                    className="col-span-2 h-8"
+                                    className="w-24 text-right"
                                 />
                             </div>
                         )}
@@ -346,6 +365,56 @@ export function MenuManagement() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Category Alert */}
+            <AlertDialog open={!!categoryToDelete} onOpenChange={() => setCategoryToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Category?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <span className="font-medium text-foreground">{categoryToDelete}</span>?
+                            This might affect items assigned to this category.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (categoryToDelete) deleteCategory(categoryToDelete);
+                                setCategoryToDelete(null);
+                            }}
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete Item Alert */}
+            <AlertDialog open={!!itemToDelete} onOpenChange={() => setItemToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Item?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <span className="font-medium text-foreground">{itemToDelete?.name}</span>?
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (itemToDelete) deleteMenuItem(itemToDelete.id);
+                                setItemToDelete(null);
+                            }}
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div >
     );
 }

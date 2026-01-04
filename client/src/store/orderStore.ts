@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
+import { fetchWithRetry } from '@/lib/api';
 
 import { Order, OrderItem, MenuItem } from '@/types/pos';
 
@@ -93,7 +94,8 @@ export const useOrderStore = create<OrderState>()(
 
       fetchOrders: async () => {
         try {
-          const response = await fetch(`${API_URL}/api/orders?t=${Date.now()}`);
+          // fetchWithRetry handles 5xx errors automatically
+          const response = await fetchWithRetry(`${API_URL}/api/orders?t=${Date.now()}`);
           if (response.ok) {
             const data = await response.json();
             const incomingOrders = data.map((o: any) => ({
@@ -129,7 +131,7 @@ export const useOrderStore = create<OrderState>()(
 
         for (const orderPayload of offlineQueue) {
           try {
-            const response = await fetch(`${API_URL}/api/orders`, {
+            const response = await fetchWithRetry(`${API_URL}/api/orders`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(orderPayload),
@@ -193,7 +195,7 @@ export const useOrderStore = create<OrderState>()(
         toast.success("Order Placed (Saved)");
 
         try {
-          const response = await fetch(`${API_URL}/api/orders`, {
+          const response = await fetchWithRetry(`${API_URL}/api/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(newOrderPayload),
@@ -250,7 +252,7 @@ export const useOrderStore = create<OrderState>()(
         }
 
         try {
-          const response = await fetch(`${API_URL}/api/orders/${orderId}/status`, {
+          const response = await fetchWithRetry(`${API_URL}/api/orders/${orderId}/status`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status }),

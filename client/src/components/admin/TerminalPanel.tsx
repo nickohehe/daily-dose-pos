@@ -85,6 +85,39 @@ export function TerminalPanel() {
             return;
         }
 
+        // Client-side Stress Test
+        if (command === 'stress') {
+            const count = parseInt(args[0]) || 50;
+            const delay = parseInt(args[1]) || 50;
+            addLog(`Starting stress test: ${count} requests, ${delay}ms delay...`, 'warning');
+
+            let success = 0;
+            let fail = 0;
+            const startTime = Date.now();
+
+            for (let i = 0; i < count; i++) {
+                // Mix fetching orders and menu to simulate real traffic
+                const endpoint = i % 2 === 0 ? '/api/orders' : '/api/menu';
+                const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${endpoint}`;
+
+                fetch(url)
+                    .then(res => {
+                        if (res.ok) success++;
+                        else fail++;
+                    })
+                    .catch(() => fail++);
+
+                // Throttle slightly
+                await new Promise(r => setTimeout(r, delay));
+            }
+
+            const taken = (Date.now() - startTime) / 1000;
+            addLog(`Stress test complete in ${taken.toFixed(2)}s.`, 'success');
+            addLog(`Success: ${success}, Failed: ${fail}`, fail > 0 ? 'error' : 'success');
+            setIsProcessing(false);
+            return;
+        }
+
         try {
             const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/admin/command`, {
                 method: 'POST',

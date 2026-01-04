@@ -22,6 +22,8 @@ export default function AdminDashboard() {
     // Local State
     const [stats, setStats] = useState({ orders: 0, sales: 0 });
     const [history, setHistory] = useState<HistoryItem[]>([]);
+    const [historyPage, setHistoryPage] = useState(1);
+    const [historyTotalPages, setHistoryTotalPages] = useState(1);
     const [selectedHistory, setSelectedHistory] = useState<DetailedHistory | null>(null);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({ topItems: [], dailyTotals: [], hourlyStats: [] });
@@ -43,12 +45,21 @@ export default function AdminDashboard() {
         }
     }, []);
 
-    const fetchHistory = useCallback(async () => {
+    const fetchHistory = useCallback(async (page = 1) => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/admin/history`);
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/admin/history?page=${page}&limit=10`);
             if (!res.ok) throw new Error('Failed to fetch history');
             const data = await res.json();
-            setHistory(data);
+
+            if (data.items && data.meta) {
+                setHistory(data.items);
+                setHistoryPage(data.meta.page);
+                setHistoryTotalPages(data.meta.totalPages);
+            } else {
+                // Fallback for legacy array response (if waiting for deploy)
+                // setHistory(data);
+                if (Array.isArray(data)) setHistory(data);
+            }
         } catch (error) {
             console.error('Error fetching history:', error);
             toast.error('Could not load history');
@@ -70,7 +81,7 @@ export default function AdminDashboard() {
     // Initial Load & Socket Listeners
     useEffect(() => {
         fetchStatus();
-        fetchHistory();
+        fetchHistory(1);
         fetchAnalytics();
         fetchMenu();
         fetchOrders(); // Initial fetch
@@ -141,7 +152,7 @@ export default function AdminDashboard() {
 
             // Refresh data
             fetchStatus();
-            fetchHistory();
+            fetchHistory(1);
             fetchAnalytics();
             useOrderStore.getState().fetchOrders(); // Clear active orders locally
             setStats({ orders: 0, sales: 0 });
@@ -213,6 +224,9 @@ export default function AdminDashboard() {
                     <HistoryTable
                         history={history}
                         onViewHistory={handleViewHistory}
+                        page={historyPage}
+                        totalPages={historyTotalPages}
+                        onPageChange={fetchHistory}
                     />
                 </TabsContent>
 

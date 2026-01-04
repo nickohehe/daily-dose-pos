@@ -1,16 +1,20 @@
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { History, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { History, ChevronRight, ChevronLeft } from "lucide-react";
 import { format } from "date-fns";
 import { HistoryItem } from "@/types/pos";
 
 interface HistoryTableProps {
     history: HistoryItem[];
     onViewHistory: (filename: string) => void;
+    page: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
 }
 
-export function HistoryTable({ history, onViewHistory }: HistoryTableProps) {
+export function HistoryTable({ history, onViewHistory, page, totalPages, onPageChange }: HistoryTableProps) {
     return (
         <Card>
             <CardHeader>
@@ -70,6 +74,33 @@ export function HistoryTable({ history, onViewHistory }: HistoryTableProps) {
                     </Table>
                 </div>
             </CardContent>
+            {totalPages > 1 && (
+                <CardFooter className="flex items-center justify-between border-t p-4">
+                    <div className="text-sm text-muted-foreground">
+                        Page {page} of {totalPages}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onPageChange(page - 1)}
+                            disabled={page <= 1}
+                        >
+                            <ChevronLeft className="h-4 w-4 mr-1" />
+                            Previous
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onPageChange(page + 1)}
+                            disabled={page >= totalPages}
+                        >
+                            Next
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                    </div>
+                </CardFooter>
+            )}
         </Card>
     );
 }

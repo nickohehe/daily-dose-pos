@@ -2,6 +2,9 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { query, getClient } from './db.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -263,7 +266,10 @@ app.delete('/api/menu/categories/:name', async (req, res) => {
 app.get('/api/orders', async (req, res) => {
     try {
         const { rows: orders } = await query(
-            `SELECT * FROM orders WHERE status != 'closed' ORDER BY created_at DESC`
+            `SELECT * FROM orders 
+             WHERE status != 'closed' 
+             AND created_at > (NOW() - INTERVAL '24 hours')
+             ORDER BY created_at DESC`
         );
         const fullOrders = await attachItemsToOrders(orders);
         res.json(fullOrders);
@@ -473,20 +479,25 @@ app.get('/api/admin/status', async (req, res) => {
 });
 
 app.get('/api/admin/history', async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
     try {
-        // Fetch sessions
+        // Get total count
+        const { rows: countRows } = await query(`SELECT COUNT(*) FROM sessions WHERE status = 'CLOSED'`);
+        const total = parseInt(countRows[0].count);
+
+        // Fetch paginated sessions
         const { rows: sessionRows } = await query(`
             SELECT * FROM sessions 
             WHERE status = 'CLOSED' 
             ORDER BY closed_at DESC
-        `);
-
-        // Sessions technically are aggregated data, so we don't filter them row-by-row for tests here
-        // UNLESS we want to re-calculate them. But we calculated `total_orders` and `total_sales` at close time
-        // filtering out is_test = FALSE. So sessions should be clean.
+            LIMIT $1 OFFSET $2
+        `, [limit, offset]);
 
         const historyList = sessionRows.map(row => ({
-            filename: row.id.toString(), // Used for key/fetching details. We might need to adjust detail fetch to support IDs.
+            filename: row.id.toString(),
             date: new Date(row.closed_at).toLocaleDateString('sv'),
             openedAt: row.opened_at,
             closedAt: row.closed_at,
@@ -494,7 +505,15 @@ app.get('/api/admin/history', async (req, res) => {
             totalSales: parseFloat(row.total_sales || 0)
         }));
 
-        res.json(historyList);
+        res.json({
+            items: historyList,
+            meta: {
+                total,
+                page,
+                totalPages: Math.ceil(total / limit),
+                limit
+            }
+        });
     } catch (err) {
         console.error('Error fetching history:', err);
         res.status(500).json({ error: 'Failed to fetch history' });
@@ -558,8 +577,20 @@ app.get('/api/admin/history/:id', async (req, res) => {
     }
 });
 
+// Simple in-memory cache for analytics
+const analyticsCache = new Map(); // Key: period, Value: { data, timestamp }
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 app.get('/api/admin/analytics', async (req, res) => {
     const { period } = req.query;
+
+    // Check cache
+    const cached = analyticsCache.get(period);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        // console.log(`Serving cached analytics for ${period}`);
+        return res.json(cached.data);
+    }
+
     let timeFilter;
 
     if (period === 'today') {
@@ -623,19 +654,27 @@ app.get('/api/admin/analytics', async (req, res) => {
 
         // Fill in missing hours
         const hourlyStats = Array.from({ length: 24 }, (_, i) => {
-            const found = hourlyRows.find(r => parseInt(r.hour) === i);
+            const match = hourlyRows.find(r => parseInt(r.hour) === i);
             return {
                 hour: i,
                 label: `${i}:00`,
-                orders: found ? parseInt(found.orders) : 0
+                orders: match ? parseInt(match.orders) : 0
             };
         });
 
-        res.json({ topItems, dailyTotals, hourlyStats });
+        const responseData = { dailyTotals, topItems, hourlyStats };
+
+        // Save to cache
+        analyticsCache.set(period, {
+            data: responseData,
+            timestamp: Date.now()
+        });
+
+        res.json(responseData);
 
     } catch (err) {
-        console.error('Analytics error:', err);
-        res.status(500).json({ error: 'Failed to generate analytics' });
+        console.error('Error fetching analytics:', err);
+        res.status(500).json({ error: 'Failed to fetch analytics' });
     }
 });
 

@@ -9,11 +9,9 @@ export default function KitchenPage() {
   const { orders, fetchOrders } = useOrderStore();
 
 
-  // Poll for new orders
+  // Initial Data Fetch
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 2000);
-    return () => clearInterval(interval);
   }, [fetchOrders]);
 
 
