@@ -47,7 +47,10 @@ export function MenuItemCard({ item, onAdd }: MenuItemCardProps) {
         return prev.filter(f => f !== flavor);
       } else {
         const max = item.maxFlavors || 1;
-        if (prev.length >= max) return prev;
+        if (prev.length >= max) {
+          if (max === 1) return [flavor];
+          return prev;
+        }
         return [...prev, flavor];
       }
     });
@@ -141,7 +144,7 @@ export function MenuItemCard({ item, onAdd }: MenuItemCardProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[60vh] -mr-4 pr-4">
+          <ScrollArea className="max-h-[60vh] pr-4">
             {isCategorized ? (
               <div className="space-y-6 py-4">
                 {sections.map((section, idx) => (
@@ -156,7 +159,7 @@ export function MenuItemCard({ item, onAdd }: MenuItemCardProps) {
                           key={opt}
                           variant={isSectionSelected(idx, opt) ? "default" : "outline"}
                           className={cn(
-                            "h-12 text-sm justify-start px-4 transition-all",
+                            "w-full h-12 text-sm justify-start px-4 transition-all focus-visible:ring-0 focus-visible:ring-offset-0",
                             isSectionSelected(idx, opt) ? "border-primary" : "hover:border-primary hover:bg-primary/5"
                           )}
                           onClick={() => toggleSectionFlavor(idx, opt, section.max)}
@@ -182,7 +185,7 @@ export function MenuItemCard({ item, onAdd }: MenuItemCardProps) {
                         key={flavor}
                         variant={isSelected(flavor) ? "default" : "outline"}
                         className={cn(
-                          "h-12 text-sm justify-start px-4 transition-all",
+                          "w-full h-12 text-sm justify-start px-4 transition-all focus-visible:ring-0 focus-visible:ring-offset-0",
                           isSelected(flavor) ? "border-primary" : "hover:border-primary hover:bg-primary/5"
                         )}
                         onClick={() => toggleFlavor(flavor)}
