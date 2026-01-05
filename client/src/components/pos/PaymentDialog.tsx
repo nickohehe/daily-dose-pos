@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Wallet, Landmark, Banknote, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +18,7 @@ interface PaymentDialogProps {
     onOpenChange: (open: boolean) => void;
     totalAmount: number;
     onConfirm: (paymentDetails: { method: string; amountTendered?: number; change?: number }, customerName?: string) => void;
+    excludePayLater?: boolean;
 }
 
 const PAYMENT_METHODS = [
@@ -28,13 +28,23 @@ const PAYMENT_METHODS = [
     { id: "Pay Later", label: "Pay Later", icon: Clock, color: "text-yellow-500" },
 ];
 
-export function PaymentDialog({ open, onOpenChange, totalAmount, onConfirm }: PaymentDialogProps) {
+export function PaymentDialog({ open, onOpenChange, totalAmount, onConfirm, excludePayLater }: PaymentDialogProps) {
     const [method, setMethod] = useState("Cash");
     const [amountTendered, setAmountTendered] = useState("");
     const [customerName, setCustomerName] = useState("");
     const [error, setError] = useState("");
 
     const change = method === "Cash" && amountTendered ? Math.max(0, parseFloat(amountTendered) - totalAmount) : 0;
+
+    const availableMethods = excludePayLater
+        ? PAYMENT_METHODS.filter(m => m.id !== "Pay Later")
+        : PAYMENT_METHODS;
+
+    // Reset default if current method is excluded
+    if (excludePayLater && method === "Pay Later") {
+        setMethod("Cash");
+    }
+
     const isCashEnough = method === "Cash" ? (parseFloat(amountTendered || "0") >= totalAmount) : true;
 
     const handleConfirm = () => {
@@ -67,62 +77,63 @@ export function PaymentDialog({ open, onOpenChange, totalAmount, onConfirm }: Pa
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-6 py-4">
-                    <RadioGroup value={method} onValueChange={setMethod} className="grid grid-cols-2 gap-4">
-                        {PAYMENT_METHODS.map((pm) => (
-                            <Label
-                                key={pm.id}
-                                htmlFor={pm.id}
-                                className={cn(
-                                    "flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-all",
-                                    method === pm.id && "border-primary bg-accent"
-                                )}
-                            >
-                                <RadioGroupItem value={pm.id} id={pm.id} className="sr-only" />
-                                <pm.icon className={cn("mb-3 h-6 w-6", pm.color)} />
-                                {pm.label}
-                            </Label>
-                        ))}
-                    </RadioGroup>
-
-                    {method === "Cash" && (
-                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                            <div className="space-y-2">
-                                <Label htmlFor="tendered">Amount Tendered</Label>
-                                <Input
-                                    id="tendered"
-                                    type="number"
-                                    placeholder="Enter amount given"
-                                    value={amountTendered}
-                                    onChange={(e) => {
-                                        setAmountTendered(e.target.value);
-                                        setError("");
-                                    }}
-                                    className={cn(error && "border-destructive focus-visible:ring-destructive")}
-                                    autoFocus
-                                />
-                                {error && <p className="text-xs text-destructive">{error}</p>}
-                            </div>
-
-                            <div className="p-4 rounded-lg bg-secondary/50 flex justify-between items-center">
-                                <span className="text-sm font-medium">Change:</span>
-                                <span className="text-xl font-bold text-green-500">₱{change.toFixed(2)}</span>
+                <div className="grid grid-cols-2 gap-4 py-4">
+                    {availableMethods.map((m) => (
+                        <div
+                            key={m.id}
+                            className={`
+                                cursor-pointer rounded-xl border-2 p-4 transition-all hover:bg-muted/50
+                                ${method === m.id ? "border-primary bg-primary/5" : "border-muted bg-transparent"}
+                            `}
+                            onClick={() => setMethod(m.id)}
+                        >
+                            <div className="flex flex-col items-center gap-3">
+                                <m.icon className={`h-8 w-8 ${method === m.id ? m.color : "text-muted-foreground"}`} />
+                                <span className={`font-medium ${method === m.id ? "text-primary" : "text-muted-foreground"}`}>
+                                    {m.label}
+                                </span>
                             </div>
                         </div>
-                    )}
-                    {method === "Pay Later" && (
-                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                            <Label htmlFor="customerName">Customer Name</Label>
+                    ))}
+                </div>
+
+                {method === "Cash" && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="tendered">Amount Tendered</Label>
                             <Input
-                                id="customerName"
-                                placeholder="Enter customer name"
-                                value={customerName}
-                                onChange={(e) => setCustomerName(e.target.value)}
+                                id="tendered"
+                                type="number"
+                                placeholder="Enter amount given"
+                                value={amountTendered}
+                                onChange={(e) => {
+                                    setAmountTendered(e.target.value);
+                                    setError("");
+                                }}
+                                className={cn(error && "border-destructive focus-visible:ring-destructive")}
                                 autoFocus
                             />
+                            {error && <p className="text-xs text-destructive">{error}</p>}
                         </div>
-                    )}
-                </div>
+
+                        <div className="p-4 rounded-lg bg-secondary/50 flex justify-between items-center">
+                            <span className="text-sm font-medium">Change:</span>
+                            <span className="text-xl font-bold text-green-500">₱{change.toFixed(2)}</span>
+                        </div>
+                    </div>
+                )}
+                {method === "Pay Later" && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                        <Label htmlFor="customerName">Customer Name</Label>
+                        <Input
+                            id="customerName"
+                            placeholder="Enter customer name"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            autoFocus
+                        />
+                    </div>
+                )}
 
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

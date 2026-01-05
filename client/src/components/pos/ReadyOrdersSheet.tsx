@@ -119,6 +119,7 @@ export function ReadyOrdersSheet() {
                     onOpenChange={(open) => !open && setSelectedOrder(null)}
                     totalAmount={selectedOrder?.total || 0}
                     onConfirm={(details) => handlePaymentSettle(details)}
+                    excludePayLater={true}
                 />
             </SheetContent>
         </Sheet>
