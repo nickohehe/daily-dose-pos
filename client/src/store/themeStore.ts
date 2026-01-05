@@ -12,7 +12,7 @@ interface ThemeState {
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 export const useThemeStore = create<ThemeState>((set) => ({
-    theme: 'dark', // Default
+    theme: (localStorage.getItem('theme') as Theme) || 'dark', // Initialize from storage
     setTheme: async (theme: Theme) => {
         // Optimistic update
         set({ theme });

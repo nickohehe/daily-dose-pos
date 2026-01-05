@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
@@ -18,6 +18,27 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="" />
   <meta name="twitter:image" content="" />
+  <meta name="twitter:image" content="" />
+
+  <!-- Theme Initialization Script to prevent FOUC -->
+  <script>
+    (function () {
+      try {
+        const localTheme = localStorage.getItem('theme');
+        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        if (localTheme === 'dark' || (!localTheme && supportDarkMode)) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.classList.remove('light');
+        } else {
+          document.documentElement.classList.add('light');
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {
+        console.error('Theme init failed', e);
+      }
+    })();
+  </script>
 </head>
 
 <body>
