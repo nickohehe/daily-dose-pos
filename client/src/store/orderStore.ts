@@ -345,8 +345,11 @@ export const useOrderStore = create<OrderState>()(
       },
     }),
     {
-      name: 'daily-dose-storage',
-      partialize: (state) => ({ offlineQueue: state.offlineQueue }), // Only persist the queue
+      name: 'order-storage-v2', // Renamed to clear old cache
+      partialize: (state) => ({
+        currentOrder: state.currentOrder, // Keep cart
+        offlineQueue: state.offlineQueue  // Keep offline queue
+      }),
     }
   )
 );
