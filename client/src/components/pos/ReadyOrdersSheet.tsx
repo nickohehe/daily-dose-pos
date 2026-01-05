@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Bell, CheckCircle2, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PaymentDialog } from './PaymentDialog';
 
 export function ReadyOrdersSheet() {
@@ -21,6 +22,8 @@ export function ReadyOrdersSheet() {
 
     // Filter for orders that are 'ready'
     const readyOrders = orders.filter((o) => o.status === 'ready');
+    const unpaidOrders = readyOrders.filter(o => o.paymentStatus === 'pending');
+    const paidOrders = readyOrders.filter(o => o.paymentStatus !== 'pending'); // 'paid'
 
     const handlePaymentSettle = async (details: { method: string, amountTendered?: number, change?: number }) => {
         if (!selectedOrder) return;
@@ -29,6 +32,69 @@ export function ReadyOrdersSheet() {
     };
 
     if (readyOrders.length === 0) return null;
+
+    const renderOrderCard = (order: Order) => (
+        <div key={order.id} className="border rounded-lg p-4 bg-card shadow-sm">
+            <div className="flex justify-between items-start mb-2">
+                <div>
+                    <h3 className="font-bold text-lg">
+                        {order.tableNumber && `Table ${order.tableNumber}`}
+                        {order.tableNumber && order.beeperNumber && ' | '}
+                        {order.beeperNumber && `Beeper ${order.beeperNumber}`}
+                        {!order.tableNumber && !order.beeperNumber && order.id}
+                    </h3>
+                    {order.customerName && order.customerName !== 'Guest' && (
+                        <div className="text-base text-primary font-semibold mt-1">
+                            {order.customerName}
+                        </div>
+                    )}
+                </div>
+                <div className="flex items-center text-xs text-muted-foreground">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {(() => {
+                        const d = new Date(order.createdAt);
+                        return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    })()}
+                </div>
+            </div>
+
+            <div className="space-y-1 mb-4">
+                {order.items.map((item, idx) => (
+                    <div key={idx} className="text-sm flex justify-between">
+                        <span>{item.quantity}x {item.menuItem.name}</span>
+                    </div>
+                ))}
+            </div>
+
+            {order.paymentStatus === 'pending' && (
+                <div className="flex justify-between items-center py-2 border-t border-dashed border-border mb-4">
+                    <span className="font-medium text-muted-foreground">Total to Pay</span>
+                    <span className="font-bold text-lg">₱{order.total.toFixed(2)}</span>
+                </div>
+            )}
+
+            {order.paymentStatus === 'pending' ? (
+                <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => setSelectedOrder(order)}
+                >
+                    <div className="flex flex-col items-center">
+                        <span className="font-bold text-destructive">Payment Pending</span>
+                        <span className="text-xs text-muted-foreground">Click to Mark Paid</span>
+                    </div>
+                </Button>
+            ) : (
+                <Button
+                    className="w-full bg-success hover:bg-success/90 text-white"
+                    onClick={() => updateOrderStatus(order.id, 'completed')}
+                >
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Complete Order
+                </Button>
+            )}
+        </div>
+    );
 
     return (
         <Sheet>
@@ -41,80 +107,47 @@ export function ReadyOrdersSheet() {
                     </Badge>
                 </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:w-[400px]">
-                <SheetHeader>
+            <SheetContent side="right" className="w-full sm:w-[500px]">
+                <SheetHeader className="mb-4">
                     <SheetTitle>Ready for Pickup</SheetTitle>
                     <SheetDescription>
-                        Mark orders as completed when handing them to the customer.
+                        Manage orders ready to be served.
                     </SheetDescription>
                 </SheetHeader>
 
-                <ScrollArea className="h-[calc(100vh-8rem)] mt-6 pr-4">
-                    <div className="space-y-4">
-                        {readyOrders.map((order) => (
-                            <div key={order.id} className="border rounded-lg p-4 bg-card shadow-sm">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h3 className="font-bold text-lg">
-                                            {order.tableNumber && `Table ${order.tableNumber}`}
-                                            {order.tableNumber && order.beeperNumber && ' | '}
-                                            {order.beeperNumber && `Beeper ${order.beeperNumber}`}
-                                            {!order.tableNumber && !order.beeperNumber && order.id}
-                                        </h3>
-                                        {order.customerName && order.customerName !== 'Guest' && (
-                                            <div className="text-base text-primary font-semibold mt-1">
-                                                {order.customerName}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center text-xs text-muted-foreground">
-                                        <Clock className="w-3 h-3 mr-1" />
-                                        {(() => {
-                                            const d = new Date(order.createdAt);
-                                            return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                        })()}
-                                    </div>
+                <Tabs defaultValue="all" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="all">Ready ({paidOrders.length})</TabsTrigger>
+                        <TabsTrigger value="pending" className="relative">
+                            Needs Payment
+                            {unpaidOrders.length > 0 && (
+                                <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full text-[10px]">
+                                    {unpaidOrders.length}
+                                </Badge>
+                            )}
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <ScrollArea className="h-[calc(100vh-12rem)] mt-4 pr-4">
+                        <TabsContent value="all" className="space-y-4 mt-0">
+                            {paidOrders.length === 0 && (
+                                <div className="text-center text-muted-foreground py-8">
+                                    No paid orders ready.
                                 </div>
+                            )}
+                            {paidOrders.map(renderOrderCard)}
+                        </TabsContent>
 
-                                <div className="space-y-1 mb-4">
-                                    {order.items.map((item, idx) => (
-                                        <div key={idx} className="text-sm flex justify-between">
-                                            <span>{item.quantity}x {item.menuItem.name}</span>
-                                        </div>
-                                    ))}
+                        <TabsContent value="pending" className="space-y-4 mt-0">
+                            {unpaidOrders.length === 0 && (
+                                <div className="text-center text-muted-foreground py-8">
+                                    No unpaid orders ready.
                                 </div>
-
-                                {order.paymentStatus === 'pending' && (
-                                    <div className="flex justify-between items-center py-2 border-t border-dashed border-border mb-4">
-                                        <span className="font-medium text-muted-foreground">Total to Pay</span>
-                                        <span className="font-bold text-lg">₱{order.total.toFixed(2)}</span>
-                                    </div>
-                                )}
-
-                                {order.paymentStatus === 'pending' ? (
-                                    <Button
-                                        className="w-full"
-                                        variant="outline"
-                                        onClick={() => setSelectedOrder(order)}
-                                    >
-                                        <div className="flex flex-col items-center">
-                                            <span className="font-bold text-destructive">Payment Pending</span>
-                                            <span className="text-xs text-muted-foreground">Click to Mark Paid</span>
-                                        </div>
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        className="w-full bg-success hover:bg-success/90 text-white"
-                                        onClick={() => updateOrderStatus(order.id, 'completed')}
-                                    >
-                                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                                        Complete Order
-                                    </Button>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </ScrollArea>
+                            )}
+                            {unpaidOrders.map(renderOrderCard)}
+                        </TabsContent>
+                    </ScrollArea>
+                </Tabs>
 
                 <PaymentDialog
                     open={!!selectedOrder}
