@@ -84,10 +84,12 @@ export function ReadyOrdersSheet() {
                                     ))}
                                 </div>
 
-                                <div className="flex justify-between items-center py-2 border-t border-dashed border-border mb-4">
-                                    <span className="font-medium text-muted-foreground">Total to Pay</span>
-                                    <span className="font-bold text-lg">₱{order.total.toFixed(2)}</span>
-                                </div>
+                                {order.paymentStatus === 'pending' && (
+                                    <div className="flex justify-between items-center py-2 border-t border-dashed border-border mb-4">
+                                        <span className="font-medium text-muted-foreground">Total to Pay</span>
+                                        <span className="font-bold text-lg">₱{order.total.toFixed(2)}</span>
+                                    </div>
+                                )}
 
                                 {order.paymentStatus === 'pending' ? (
                                     <Button
