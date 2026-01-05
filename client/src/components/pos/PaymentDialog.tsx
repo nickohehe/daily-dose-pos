@@ -113,6 +113,17 @@ export function PaymentDialog({ open, onOpenChange, totalAmount, onConfirm, excl
                                 className={cn(error && "border-destructive focus-visible:ring-destructive")}
                                 autoFocus
                             />
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                className="w-full mt-2"
+                                onClick={() => {
+                                    setAmountTendered(totalAmount.toString());
+                                    setError("");
+                                }}
+                            >
+                                Exact Amount (₱{totalAmount.toFixed(2)})
+                            </Button>
                             {error && <p className="text-xs text-destructive">{error}</p>}
                         </div>
 
