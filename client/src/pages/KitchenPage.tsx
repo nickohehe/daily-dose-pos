@@ -42,7 +42,7 @@ export default function KitchenPage() {
 
       <div className="flex-1 p-4 lg:p-6 overflow-auto relative z-10 w-full">
         <div className="max-w-screen-2xl mx-auto">
-          {orders.length === 0 ? (
+          {activeOrders.length === 0 && readyOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground animate-in fade-in duration-500">
               <div className="w-24 h-24 bg-card/50 rounded-full flex items-center justify-center mb-6 shadow-lg border border-white/20 backdrop-blur-sm">
                 <ClipboardList className="w-10 h-10 opacity-50 text-primary" />
