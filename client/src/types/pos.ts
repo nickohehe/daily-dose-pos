@@ -12,6 +12,7 @@ export interface MenuItem {
   emoji?: string;
   flavors?: string[] | FlavorSection[];
   maxFlavors?: number;
+  type?: 'food' | 'drink' | string;
 }
 
 export interface OrderItem {
@@ -52,6 +53,7 @@ export interface AnalyticsData {
   topItems: { name: string; quantity: number; sales: number }[];
   dailyTotals: { date: string; sales: number; orders: number }[];
   hourlyStats: { hour: number; label: string; orders: number }[];
+  totalCups?: number;
 }
 
 export interface DetailedHistory {

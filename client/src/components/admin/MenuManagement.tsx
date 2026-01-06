@@ -27,7 +27,7 @@ export function MenuManagement() {
     const { items: menuItems, categories, addMenuItem, updateMenuItem, deleteMenuItem, addCategory, deleteCategory, reorderCategories } = useMenuStore();
     const [newCategory, setNewCategory] = useState('');
     const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
-    const [currentItem, setCurrentItem] = useState<Partial<MenuItem>>({ name: '', price: 0, category: 'Basic', emoji: '', flavors: [] });
+    const [currentItem, setCurrentItem] = useState<Partial<MenuItem>>({ name: '', price: 0, category: 'Basic', emoji: '', flavors: [], type: 'food' });
     const [priceInput, setPriceInput] = useState('');
     const [flavorInput, setFlavorInput] = useState('');
     const [isEditing, setIsEditing] = useState(false);
@@ -168,7 +168,7 @@ export function MenuManagement() {
     const resetItemForm = () => {
         // Safe default: use first category or 'Basic' fallback
         const defaultCategory = categories.length > 0 ? categories[0] : 'Basic';
-        setCurrentItem({ name: '', price: 0, category: defaultCategory, emoji: '', flavors: [] });
+        setCurrentItem({ name: '', price: 0, category: defaultCategory, emoji: '', flavors: [], type: 'food' });
         setPriceInput('');
         setFlavorInput('');
         setNewSectionName('');
@@ -360,6 +360,23 @@ export function MenuManagement() {
                                 className="col-span-3"
                                 placeholder="e.g. ☕"
                             />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="type" className="text-right">
+                                Type
+                            </Label>
+                            <Select
+                                value={currentItem.type || 'food'}
+                                onValueChange={(val) => setCurrentItem({ ...currentItem, type: val })}
+                            >
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="food">Food</SelectItem>
+                                    <SelectItem value="drink">Drink</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 

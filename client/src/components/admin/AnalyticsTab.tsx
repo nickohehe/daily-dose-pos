@@ -1,8 +1,8 @@
-
+```typescript
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Calendar, DollarSign, ShoppingBag, Clock, Award } from "lucide-react";
+import { TrendingUp, Calendar, DollarSign, ShoppingBag, Clock, Award, Coffee } from "lucide-react";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     AreaChart, Area
@@ -23,7 +23,7 @@ export function AnalyticsTab({ analytics, period, setPeriod }: AnalyticsTabProps
     const topItem = analytics.topItems[0];
 
     // Format currency
-    const formatCurrency = (val: number) => `₱${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const formatCurrency = (val: number) => `₱${ val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } `;
 
     const getPeriodText = () => {
         if (period === 'today') return 'today';
@@ -76,6 +76,13 @@ export function AnalyticsTab({ analytics, period, setPeriod }: AnalyticsTabProps
                     color="text-blue-500"
                 />
                 <StatsCard
+                    title="Total Cups Sold"
+                    value={(analytics.totalCups || 0).toString()}
+                    icon={Coffee}
+                    trend="Drink items"
+                    color="text-orange-500"
+                />
+                <StatsCard
                     title="Avg Order Value"
                     value={formatCurrency(avgOrderValue)}
                     icon={TrendingUp}
@@ -85,7 +92,7 @@ export function AnalyticsTab({ analytics, period, setPeriod }: AnalyticsTabProps
                 <StatsCard
                     title="Best Seller"
                     value={topItem ? topItem.name : "N/A"}
-                    subValue={topItem ? `${topItem.quantity} sold` : ""}
+                    subValue={topItem ? `${ topItem.quantity } sold` : ""}
                     icon={Award}
                     trend="Top item"
                     color="text-amber-500"
@@ -114,13 +121,13 @@ export function AnalyticsTab({ analytics, period, setPeriod }: AnalyticsTabProps
                                         dataKey="date"
                                         tickFormatter={(str) => {
                                             const d = new Date(str);
-                                            return `${d.getMonth() + 1}/${d.getDate()}`;
+                                            return `${ d.getMonth() + 1 }/${d.getDate()}`;
                                         }}
-                                        fontSize={12}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        dy={10}
-                                    />
+fontSize = { 12}
+tickLine = { false}
+axisLine = { false}
+dy = { 10}
+    />
                                     <YAxis
                                         fontSize={12}
                                         tickLine={false}
@@ -142,18 +149,18 @@ export function AnalyticsTab({ analytics, period, setPeriod }: AnalyticsTabProps
                                         fill="url(#colorSales)"
                                         animationDuration={1500}
                                     />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                                </AreaChart >
+                            </ResponsiveContainer >
                         ) : (
-                            <div className="flex items-center justify-center h-full text-muted-foreground">
-                                No sales data found.
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+    <div className="flex items-center justify-center h-full text-muted-foreground">
+        No sales data found.
+    </div>
+)}
+                    </CardContent >
+                </Card >
 
-                {/* Peak Hours Bar Chart */}
-                <Card className="col-span-1 shadow-sm">
+    {/* Peak Hours Bar Chart */ }
+    < Card className = "col-span-1 shadow-sm" >
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Clock className="h-5 w-5 text-muted-foreground" />
@@ -183,10 +190,10 @@ export function AnalyticsTab({ analytics, period, setPeriod }: AnalyticsTabProps
                             </div>
                         )}
                     </CardContent>
-                </Card>
+                </Card >
 
-                {/* Top Products List */}
-                <Card className="col-span-1 shadow-sm">
+    {/* Top Products List */ }
+    < Card className = "col-span-1 shadow-sm" >
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Award className="h-5 w-5 text-muted-foreground" />
@@ -232,9 +239,9 @@ export function AnalyticsTab({ analytics, period, setPeriod }: AnalyticsTabProps
                             </div>
                         </div>
                     </CardContent>
-                </Card>
-            </div>
-        </div>
+                </Card >
+            </div >
+        </div >
     );
 }
 

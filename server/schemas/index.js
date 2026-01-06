@@ -10,7 +10,8 @@ export const menuItemSchema = z.object({
     description: z.string().optional().nullable(),
     isAvailable: z.boolean().optional(),
     flavors: z.array(z.string()).optional(),
-    maxFlavors: z.number().int().min(1).optional()
+    maxFlavors: z.number().int().min(1).optional(),
+    type: z.enum(['food', 'drink']).optional()
 });
 
 export const categorySchema = z.object({

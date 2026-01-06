@@ -63,6 +63,8 @@ const initDb = async () => {
             // Add flavors column to menu_items (JSONB array of strings)
             await query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS flavors JSONB DEFAULT '[]'`);
             await query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS max_flavors INTEGER DEFAULT 1`);
+            // Add type column (food/drink)
+            await query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'food'`);
 
             // Add table_number to orders
             await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS table_number INTEGER`);
@@ -170,7 +172,8 @@ app.get('/api/menu', async (req, res) => {
             isAvailable: item.is_available,
             image: item.image_url,
             flavors: Array.isArray(item.flavors) ? item.flavors : [],
-            maxFlavors: item.max_flavors || 1
+            maxFlavors: item.max_flavors || 1,
+            type: item.type || 'food'
         }));
 
         res.json({
@@ -189,8 +192,8 @@ app.post('/api/menu/items', validate(menuItemSchema), async (req, res) => {
 
     try {
         await query(
-            `INSERT INTO menu_items (id, name, price, category, emoji, image_url, description, is_available, deleted, flavors, max_flavors)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            `INSERT INTO menu_items (id, name, price, category, emoji, image_url, description, is_available, deleted, flavors, max_flavors, type)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
             [
                 newItem.id,
                 newItem.name,
@@ -202,7 +205,8 @@ app.post('/api/menu/items', validate(menuItemSchema), async (req, res) => {
                 newItem.isAvailable ?? true,
                 false,
                 JSON.stringify(newItem.flavors || []),
-                newItem.maxFlavors || 1
+                newItem.maxFlavors || 1,
+                newItem.type || 'food'
             ]
         );
         res.status(201).json(newItem);
@@ -230,6 +234,7 @@ app.put('/api/menu/items/:id', validate(menuItemSchema.partial()), async (req, r
         if (updates.isAvailable !== undefined) { fields.push(`is_available = $${idx++}`); values.push(updates.isAvailable); }
         if (updates.flavors !== undefined) { fields.push(`flavors = $${idx++}`); values.push(JSON.stringify(updates.flavors)); }
         if (updates.maxFlavors !== undefined) { fields.push(`max_flavors = $${idx++}`); values.push(updates.maxFlavors); }
+        if (updates.type !== undefined) { fields.push(`type = $${idx++}`); values.push(updates.type); }
 
         if (fields.length === 0) return res.json({ message: 'No updates provided' });
 
@@ -795,25 +800,33 @@ app.get('/api/admin/analytics', async (req, res) => {
 
         const itemsSql = `
             SELECT 
-                menu_item_name_snapshot as name, 
-                SUM(quantity) as quantity, 
-                SUM(quantity * menu_item_price_snapshot) as sales
-            FROM order_items
-            JOIN orders ON orders.id = order_items.order_id
-            WHERE ${timeFilter.replace('created_at', 'orders.created_at')} AND orders.is_test = FALSE
-            GROUP BY menu_item_name_snapshot
+                i.menu_item_name_snapshot as name, 
+                SUM(i.quantity) as quantity, 
+                SUM(i.quantity * i.menu_item_price_snapshot) as sales
+            FROM order_items i
+            JOIN orders o ON i.order_id = o.id
+            WHERE ${timeFilter.replace(/created_at/g, 'o.created_at')} AND o.is_test = FALSE
+            GROUP BY i.menu_item_name_snapshot
             ORDER BY quantity DESC
-            LIMIT 10
+            LIMIT 5
         `;
         const { rows: itemRows } = await query(itemsSql);
 
-        const topItems = itemRows.map(r => ({
-            name: r.name,
-            quantity: parseInt(r.quantity),
-            sales: parseFloat(r.sales)
-        }));
-
-
+        // Calculate Total Cups (Drinks)
+        // We need to join with menu_items to get the type (snapshot doesn't have type currently)
+        // Or if we trust the menu_item_id link is still valid. 
+        // Ideally we should snapshot 'type' too, but for now we join on current menu_items.
+        const cupsSql = `
+            SELECT SUM(i.quantity) as total_cups
+            FROM order_items i
+            JOIN orders o ON i.order_id = o.id
+            JOIN menu_items m ON i.menu_item_id = m.id
+            WHERE ${timeFilter.replace(/created_at/g, 'o.created_at')} 
+            AND o.is_test = FALSE
+            AND m.type = 'drink'
+        `;
+        const { rows: cupsRows } = await query(cupsSql);
+        const totalCups = parseInt(cupsRows[0]?.total_cups || 0);
 
         const hourlySql = `
             SELECT 
