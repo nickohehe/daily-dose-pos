@@ -25,10 +25,16 @@ export default function KitchenPage() {
 
     socket.on('order:new', handleNewOrder);
 
+    // Polling fallback to ensure sync (every 15s)
+    const pollInterval = setInterval(() => {
+      fetchOrders();
+    }, 15000);
+
     return () => {
       socket.off('order:new', handleNewOrder);
+      clearInterval(pollInterval);
     };
-  }, []);
+  }, [fetchOrders]);
 
   const activeOrders = orders.filter((o) => o.status === 'new' || o.status === 'preparing');
   const readyOrders = orders.filter((o) => o.status === 'ready');

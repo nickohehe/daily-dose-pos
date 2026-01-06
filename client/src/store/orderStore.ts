@@ -356,6 +356,8 @@ export const useOrderStore = create<OrderState>()(
 
           // Check for status changes to trigger notifications
           const existingOrder = state.orders.find(o => o.id === order.id);
+          console.log(`[Socket] Received update for ${order.id}: ${existingOrder?.status} -> ${order.status}`);
+
           if (existingOrder && existingOrder.status !== order.status) {
             const customerText = (order.customerName && order.customerName !== 'Guest')
               ? ` for ${order.customerName}`
