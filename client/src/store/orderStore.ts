@@ -223,10 +223,18 @@ export const useOrderStore = create<OrderState>()(
             const createdOrder = await response.json();
             createdOrder.createdAt = new Date(createdOrder.createdAt);
 
-            // Replace optimistic order with real one
-            set((state) => ({
-              orders: state.orders.map(o => o.id === newOrderPayload.id ? createdOrder : o)
-            }));
+            // Replace optimistic order with real one, OR remove optimistic if real one already exists (race condition fix)
+            set((state) => {
+              const alreadyExists = state.orders.some(o => o.id === createdOrder.id);
+              if (alreadyExists) {
+                // Socket beat us to it. Just remove the optimistic placeholder.
+                return { orders: state.orders.filter(o => o.id !== newOrderPayload.id) };
+              }
+              // Normal case: replace optimistic with real
+              return {
+                orders: state.orders.map(o => o.id === newOrderPayload.id ? createdOrder : o)
+              };
+            });
           } else {
             if (response.status === 403) {
               const errorData = await response.json();
